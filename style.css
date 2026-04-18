@@ -1,70 +1,166 @@
 /* style.css */
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=Noto+Serif+KR:wght@600&display=swap');
 
+/* 1. 전역 스타일 및 변수 (이미지 톤앤매너 반영) */
 :root {
-  --bg       : #f5f5f0;
-  --surface  : #ffffff;
-  --primary  : #2d5a8e;
-  --primary-l: #e8f0fb;
-  --accent   : #e8734a;
-  --text-1   : #1a1a2e;
-  --text-2   : #555566;
-  --text-3   : #9999aa;
-  --border   : #e0e0e8;
-  --success  : #2e7d52;
-  --danger   : #c0392b;
-  --radius   : 12px;
-  --shadow   : 0 2px 12px rgba(0,0,0,0.08);
+    --bg-color: #f8f9fa; /* 아주 연한 회색 배경 */
+    --card-bg: #ffffff;
+    --primary-color: #364d79; /* 이미지의 짙은 네이비 버튼 색 */
+    --border-color: #e1e4e8;
+    --text-main: #333333;
+    --text-sub: #666666;
+    --shadow: 0 4px 6px rgba(0, 0, 0, 0.05); /* 은은한 그림자 */
 }
-
-* { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
-  font-family: 'Noto Sans KR', sans-serif;
-  background: var(--bg);
-  color: var(--text-1);
-  min-height: 100vh;
-  font-size: 15px;
-  line-height: 1.7;
+    background-color: var(--bg-color);
+    font-family: 'Noto Sans KR', sans-serif;
+    margin: 0;
+    color: var(--text-main);
 }
 
-.container { max-width: 800px; margin: 0 auto; padding: 20px; }
-
-.app-header {
-  background: var(--surface);
-  padding: 16px 24px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-bottom: 1px solid var(--border);
-  position: sticky;
-  top: 0;
-  z-index: 100;
+.container {
+    max-width: 800px;
+    margin: 30px auto;
+    padding: 0 20px;
 }
 
-.logo { font-family: 'Noto Serif KR', serif; font-size: 20px; color: var(--primary); font-weight: 600; }
+/* 2. 상단 필터 바 스타일 */
+.filter-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
 
-/* 문제 카드 스타일 */
+.filter-group {
+    display: flex;
+    gap: 10px;
+}
+
+.filter-group select {
+    padding: 10px 15px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px; /* 둥근 모서리 */
+    background-color: var(--card-bg);
+    font-size: 14px;
+    color: var(--text-main);
+    cursor: pointer;
+}
+
+.btn-random {
+    background-color: var(--card-bg);
+    color: var(--primary-color);
+    border: 1px solid var(--primary-color);
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s;
+}
+
+.btn-random:hover {
+    background-color: #e6f7ff; /* 호버 시 연한 파랑 */
+}
+
+/* 3. 문제 카드 스타일 (핵심) */
 .card {
-  background: var(--surface);
-  border-radius: var(--radius);
-  padding: 24px;
-  box-shadow: var(--shadow);
-  margin-bottom: 20px;
+    background-color: var(--card-bg);
+    border-radius: 15px; /* 더 둥근 모서리 */
+    padding: 30px;
+    box-shadow: var(--shadow);
+    border: 1px solid #f0f0f0;
+}
+
+.card-header-info {
+    font-size: 14px;
+    color: var(--text-sub);
+    margin-bottom: 15px;
+    display: flex;
+    gap: 10px;
+}
+
+.card-question {
+    font-size: 18px;
+    font-weight: 500;
+    line-height: 1.5;
+    margin-bottom: 25px;
+}
+
+/* 4. 보기 버튼 스타일 (이미지처럼 가로로 긴 형태) */
+.choices {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-bottom: 30px;
 }
 
 .choice-btn {
-  width: 100%;
-  text-align: left;
-  padding: 14px 18px;
-  margin-bottom: 10px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: #fff;
-  cursor: pointer;
-  transition: all 0.2s;
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 15px 20px;
+    text-align: left; /* 왼쪽 정렬 */
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
 }
 
-.choice-btn:hover { background: var(--primary-l); border-color: var(--primary); }
-.choice-btn.correct { background: #eafaf2; border-color: var(--success); color: var(--success); font-weight: bold; }
-.choice-btn.wrong { background: #fdf0ee; border-color: var(--danger); color: var(--danger); }
+.choice-btn:hover {
+    background-color: var(--bg-color);
+    border-color: #d1d5da;
+}
+
+/* 보기 번호 동그라미 스타일 */
+.choice-num {
+    display: inline-block;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background-color: #f0f0f0;
+    color: var(--text-sub);
+    text-align: center;
+    line-height: 24px;
+    font-size: 12px;
+    margin-right: 15px;
+    font-weight: bold;
+}
+
+/* 5. 하단 네비게이션 바 */
+.card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px solid #f0f0f0;
+    padding-top: 20px;
+    margin-top: 20px;
+}
+
+.btn-nav {
+    padding: 10px 25px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background-color: var(--card-bg);
+    color: var(--text-sub);
+    cursor: pointer;
+}
+
+.btn-nav.active {
+    background-color: var(--card-bg);
+    color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.btn-nav:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.page-indicator {
+    font-size: 14px;
+    color: var(--text-sub);
+}
