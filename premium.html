@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>임상심리사 퀴즈 Premium</title>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+    <title>임상심리사 퀴즈</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body class="premium-body">
@@ -12,14 +12,14 @@
     <main class="container">
         <div class="user-status-bar">
             <div class="user-info">
-                <span class="user-email" id="display-email">사용자 정보 로딩 중...</span>
+                <span class="user-email" id="display-email"></span>
                 <span class="badge premium-badge" id="display-status">PREMIUM</span>
             </div>
             <button class="btn-logout" onclick="handleLogout()">로그아웃</button>
         </div>
 
         <header class="premium-header">
-            <h1 class="premium-title">임상심리사 퀴즈 <span class="highlight">Premium</span></h1>
+            <h1 class="premium-title">임상심리사 퀴즈</h1>
         </header>
 
         <div class="filter-bar">
@@ -59,11 +59,10 @@
             "2": ["심리학개론", "이상심리학", "심리검사", "임상심리학", "심리상담"]
         };
 
-        // 급수 선택 시 과목 드롭다운 업데이트
+        // 과목 드롭다운 업데이트
         function updateSubjects() {
             const grade = document.getElementById('sel-grade').value;
             const categorySelect = document.getElementById('sel-category');
-            
             categorySelect.innerHTML = '<option value="">과목 전체</option>';
             
             if (grade && subjectData[grade]) {
@@ -76,7 +75,7 @@
             }
         }
 
-        // 연도 옵션 생성 (2010년 ~ 현재)
+        // 연도 옵션 자동 생성
         function initYears() {
             const yearSelect = document.getElementById('sel-year');
             const currentYear = new Date().getFullYear();
@@ -88,24 +87,21 @@
             }
         }
 
-        // 사용자 정보 표시 (common.js의 currentUser 활용)
-        function displayUserInfo() {
-            const emailDisplay = document.getElementById('display-email');
-            const statusDisplay = document.getElementById('display-status');
-            
-            // 로그인 정보를 common.js 변수에서 가져옴
-            if (window.currentUser && window.currentUser.email) {
-                emailDisplay.innerText = window.currentUser.email;
-                statusDisplay.innerText = window.currentUser.status.toUpperCase();
-            }
-        }
-
-        // 페이지 로드 시 실행
-        window.onload = () => {
+        // 페이지 로드 시 실행되는 초기화 함수
+        document.addEventListener('DOMContentLoaded', () => {
             initYears();
-            // 약간의 지연을 주어 common.js가 세션을 확인할 시간을 줌
-            setTimeout(displayUserInfo, 500); 
-        };
+            
+            // 세션스토리지에서 유저 정보를 즉시 가져와 표시
+            const savedUser = sessionStorage.getItem('quiz_user');
+            if (savedUser) {
+                const user = JSON.parse(savedUser);
+                document.getElementById('display-email').innerText = user.email;
+                document.getElementById('display-status').innerText = user.status.toUpperCase();
+            } else {
+                // 로그인 정보가 없으면 메인으로 리다이렉트 (선택 사항)
+                // location.href = 'index.html';
+            }
+        });
     </script>
 </body>
 </html>
