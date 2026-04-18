@@ -10,6 +10,14 @@
 <body class="premium-body">
 
     <main class="container">
+        <div class="user-status-bar">
+            <div class="user-info">
+                <span class="user-email" id="display-email">사용자 정보 로딩 중...</span>
+                <span class="badge premium-badge" id="display-status">PREMIUM</span>
+            </div>
+            <button class="btn-logout" onclick="handleLogout()">로그아웃</button>
+        </div>
+
         <header class="premium-header">
             <h1 class="premium-title">임상심리사 퀴즈 <span class="highlight">Premium</span></h1>
         </header>
@@ -28,7 +36,7 @@
                 
                 <select id="sel-year">
                     <option value="">연도 전체</option>
-                    </select>
+                </select>
             </div>
             
             <button class="btn-random" onclick="loadQuestions()">
@@ -45,17 +53,17 @@
 
     <script src="common.js"></script>
     <script>
-        // 1. 급수에 따른 과목 자동 업데이트
+        // 급수별 과목 데이터
         const subjectData = {
             "1": ["고급임상심리학", "고급이상심리학", "고급심리검사", "고급심리치료", "고급연구방법론"],
             "2": ["심리학개론", "이상심리학", "심리검사", "임상심리학", "심리상담"]
         };
 
+        // 급수 선택 시 과목 드롭다운 업데이트
         function updateSubjects() {
             const grade = document.getElementById('sel-grade').value;
             const categorySelect = document.getElementById('sel-category');
             
-            // 기존 옵션 초기화
             categorySelect.innerHTML = '<option value="">과목 전체</option>';
             
             if (grade && subjectData[grade]) {
@@ -68,11 +76,11 @@
             }
         }
 
-        // 2. 연도 자동 생성 (2010년 ~ 2024년)
+        // 연도 옵션 생성 (2010년 ~ 현재)
         function initYears() {
             const yearSelect = document.getElementById('sel-year');
             const currentYear = new Date().getFullYear();
-            for (let y = 2024; y >= 2010; y--) {
+            for (let y = currentYear; y >= 2010; y--) {
                 const opt = document.createElement('option');
                 opt.value = y;
                 opt.text = y + "년";
@@ -80,8 +88,23 @@
             }
         }
 
+        // 사용자 정보 표시 (common.js의 currentUser 활용)
+        function displayUserInfo() {
+            const emailDisplay = document.getElementById('display-email');
+            const statusDisplay = document.getElementById('display-status');
+            
+            // 로그인 정보를 common.js 변수에서 가져옴
+            if (window.currentUser && window.currentUser.email) {
+                emailDisplay.innerText = window.currentUser.email;
+                statusDisplay.innerText = window.currentUser.status.toUpperCase();
+            }
+        }
+
+        // 페이지 로드 시 실행
         window.onload = () => {
             initYears();
+            // 약간의 지연을 주어 common.js가 세션을 확인할 시간을 줌
+            setTimeout(displayUserInfo, 500); 
         };
     </script>
 </body>
