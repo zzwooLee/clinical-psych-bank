@@ -37,6 +37,13 @@
                 <select id="sel-year">
                     <option value="">연도 전체</option>
                 </select>
+
+                <select id="sel-limit">
+                    <option value="20">20문제</option>
+                    <option value="30">30문제</option>
+                    <option value="50">50문제</option>
+                    <option value="100">100문제</option>
+                </select>
             </div>
             
             <button class="btn-random" onclick="loadQuestions()">
@@ -53,64 +60,57 @@
 
     <script src="common.js"></script>
     <script>
-        // 급수별 과목 데이터
         const subjectData = {
             "1": ["고급임상심리학", "고급이상심리학", "고급심리검사", "고급심리치료", "고급연구방법론"],
             "2": ["심리학개론", "이상심리학", "심리검사", "임상심리학", "심리상담"]
         };
 
-        // 과목 드롭다운 업데이트
         function updateSubjects() {
             const grade = document.getElementById('sel-grade').value;
             const categorySelect = document.getElementById('sel-category');
             categorySelect.innerHTML = '<option value="">과목 전체</option>';
-            
             if (grade && subjectData[grade]) {
                 subjectData[grade].forEach(sub => {
                     const opt = document.createElement('option');
-                    opt.value = sub;
-                    opt.text = sub;
+                    opt.value = sub; opt.text = sub;
                     categorySelect.add(opt);
                 });
             }
         }
 
-        // [신규] DB에 존재하는 연도만 가져와서 필터 채우기
         async function initYears() {
             const yearSelect = document.getElementById('sel-year');
             if (!yearSelect) return;
-
             try {
                 const response = await fetch('/api/years');
-                if (!response.ok) throw new Error("연도 로드 실패");
                 const years = await response.json();
-
                 yearSelect.innerHTML = '<option value="">연도 전체</option>';
                 if (years && years.length > 0) {
                     years.forEach(year => {
                         const opt = document.createElement('option');
-                        opt.value = year;
-                        opt.text = year + "년";
+                        opt.value = year; opt.text = year + "년";
                         yearSelect.add(opt);
                     });
                 }
-            } catch (error) {
-                console.error("연도 데이터 로드 오류:", error);
-            }
+            } catch (e) { console.error("연도 로드 실패", e); }
         }
 
-        // 페이지 로드 시 초기화
         document.addEventListener('DOMContentLoaded', () => {
-            initYears(); // 연도 동적 로딩
-            
-            // 세션 정보 즉시 표시
+            initYears();
             const savedUser = sessionStorage.getItem('quiz_user');
             if (savedUser) {
                 const user = JSON.parse(savedUser);
                 document.getElementById('display-email').innerText = user.email;
                 document.getElementById('display-status').innerText = user.status.toUpperCase();
+                
+                // 추가 제안: Free 등급일 경우 개수 선택 제한
+                const limitSelect = document.getElementById('sel-limit');
+                if (user.status === 'free' && limitSelect) {
+                    limitSelect.disabled = true;
+                    limitSelect.title = "Premium 전용 기능입니다.";
+                }
             } else {
-                location.href = 'index.html'; // 로그인 정보 없으면 튕김
+                location.href = 'index.html';
             }
         });
     </script>
