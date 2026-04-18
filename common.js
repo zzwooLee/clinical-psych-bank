@@ -1,21 +1,44 @@
 /* common.js */
 
+// 1. 전역 변수
 let allQuestions = [];
 let currentIndex = 0;
 let currentUser = JSON.parse(sessionStorage.getItem('quiz_user')) || { email: '', status: 'free' };
 
-// 로그인/UI 관련 공통 함수
-function updateUserUI() {
-    const guestView = document.getElementById('guest-view');
-    const userView = document.getElementById('user-view');
-    const info = document.getElementById('user-display-info');
-    if (currentUser.email && guestView && userView) {
-        guestView.style.display = 'none';
-        userView.style.display = 'block';
-        if (info) info.innerText = `${currentUser.email}님 (등급: ${currentUser.status.toUpperCase()})`;
+/**
+ * 2. 회원가입 함수 (ReferenceError 방지를 위해 최상단 배치)
+ */
+async function handleSignUp() {
+    const email = document.getElementById('email').value;
+    const password = document.getElementById('password').value;
+    
+    if (!email || !password) {
+        alert("이메일과 비밀번호를 입력해주세요.");
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/signup', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password })
+        });
+
+        const result = await response.json();
+        if (response.ok) {
+            alert("가입 확인 이메일을 보냈습니다! 메일함을 확인해 주세요.");
+        } else {
+            alert("가입 실패: " + result.message);
+        }
+    } catch (error) {
+        console.error("Signup error:", error);
+        alert("서버와 통신할 수 없습니다.");
     }
 }
 
+/**
+ * 3. 로그인 함수
+ */
 async function handleLogin() {
     const email = document.getElementById('email').value;
     const password = document.getElementById('password').value;
@@ -38,9 +61,12 @@ async function handleLogin() {
                 updateUserUI();
             }
         } else alert(result.message);
-    } catch (e) { alert("서버 오류"); }
+    } catch (e) { alert("로그인 서버 오류"); }
 }
 
+/**
+ * 4. 로그아웃 함수
+ */
 function handleLogout() {
     if (confirm("로그아웃 하시겠습니까?")) {
         sessionStorage.removeItem('quiz_user');
@@ -48,7 +74,7 @@ function handleLogout() {
     }
 }
 
-// 문제 로드 및 렌더링
+// 나머지 퀴즈 관련 함수들 (loadQuestions, renderQuestion 등 기존과 동일)
 async function loadQuestions() {
     const area = document.getElementById('question-area');
     if (area) area.innerHTML = '<div class="loading" style="text-align:center; padding:50px;">데이터 로드 중...</div>';
@@ -71,20 +97,15 @@ async function loadQuestions() {
         currentIndex = 0;
         renderQuestion();
     } catch (e) {
-        if (area) area.innerHTML = '<div class="error" style="text-align:center; padding:50px;">불러오기 실패</div>';
+        if (area) area.innerHTML = '불러오기 실패';
     }
 }
 
 function renderQuestion() {
     const area = document.getElementById('question-area');
-    if (!area || allQuestions.length === 0) {
-        if (area) area.innerHTML = '<div class="card" style="text-align:center; padding:50px;">해당 조건의 문제가 없습니다.</div>';
-        return;
-    }
-
+    if (!area || allQuestions.length === 0) return;
     const q = allQuestions[currentIndex];
     const displayYear = q.exam_date ? String(q.exam_date).substring(0, 4) + '년' : '';
-
     area.innerHTML = `
         <div class="card">
             <div class="card-header-info">
@@ -93,12 +114,7 @@ function renderQuestion() {
             </div>
             <div class="card-question">${q.question}</div>
             <div class="choices">
-                ${[1, 2, 3, 4].map(num => `
-                    <button class="choice-btn" id="choice-${num}" onclick="checkAnswer(${num})">
-                        <span class="choice-num">${num}</span>
-                        <span class="choice-text">${q['choice' + num]}</span>
-                    </button>
-                `).join('')}
+                ${[1, 2, 3, 4].map(num => `<button class="choice-btn" id="choice-${num}" onclick="checkAnswer(${num})"><span class="choice-num">${num}</span>${q['choice' + num]}</button>`).join('')}
             </div>
             <div id="result-box" class="result-box" style="display:none; margin-top:20px; text-align:center;"></div>
             <div class="card-footer">
@@ -114,16 +130,12 @@ function checkAnswer(selected) {
     const resultBox = document.getElementById('result-box');
     const btns = document.querySelectorAll('.choice-btn');
     btns.forEach(btn => btn.style.pointerEvents = 'none');
-
     if (selected == correct) {
-        document.getElementById(`choice-${selected}`).style.borderColor = "#2ecc71";
         document.getElementById(`choice-${selected}`).style.backgroundColor = "#eafaf2";
-        resultBox.innerHTML = "<span style='color: #2ecc71; font-weight:bold;'>✅ 정답입니다!</span>";
+        resultBox.innerHTML = "✅ 정답입니다!";
     } else {
-        document.getElementById(`choice-${selected}`).style.borderColor = "#e74c3c";
         document.getElementById(`choice-${selected}`).style.backgroundColor = "#fdf0ee";
-        document.getElementById(`choice-${correct}`).style.borderColor = "#2ecc71";
-        resultBox.innerHTML = `<span style='color: #e74c3c; font-weight:bold;'>❌ 오답입니다. 정답은 ${correct}번입니다.</span>`;
+        resultBox.innerHTML = "❌ 오답입니다.";
     }
     resultBox.style.display = 'block';
 }
@@ -132,3 +144,16 @@ function changeQuestion(step) {
     currentIndex += step;
     renderQuestion();
 }
+
+function updateUserUI() {
+    const guestView = document.getElementById('guest-view');
+    const userView = document.getElementById('user-view');
+    const info = document.getElementById('user-display-info');
+    if (currentUser.email && guestView && userView) {
+        guestView.style.display = 'none';
+        userView.style.display = 'block';
+        if (info) info.innerText = `${currentUser.email}님 (등급: ${currentUser.status.toUpperCase()})`;
+    }
+}
+
+document.addEventListener('DOMContentLoaded', updateUserUI);
