@@ -1,25 +1,103 @@
 /* common.js */
 let allQuestions = [];
 let currentIndex = 0;
-let currentUser = { email: '', status: 'free' }; // 실제 구현 시 API를 통해 가져옴
+// 초기 사용자 상태 설정 (로그인 전 기본값)
+let currentUser = { email: '', status: 'free' }; 
 
-// 1. 문제 데이터 로드 (기존 questions.gs 대체)
+/**
+ * 1. 로그인 상태 실시간 감지 및 UI 업데이트
+ * 페이지 로드 시 및 로그인/로그아웃 시 자동으로 실행됩니다.
+ */
+supabase.auth.onAuthStateChange(async (event, session) => {
+  const guestView = document.getElementById('guest-view');
+  const userView = document.getElementById('user-view');
+  const userDisplayInfo = document.getElementById('user-display-info');
+
+  if (session) {
+    // A. 로그인된 상태
+    if (guestView) guestView.style.display = 'none';
+    if (userView) userView.style.display = 'block';
+
+    // Supabase 'users' 테이블에서 해당 유저의 등급(user_status) 조회
+    const { data: profile, error } = await supabase
+      .from('users')
+      .select('user_status')
+      .eq('id', session.user.id)
+      .single();
+
+    // 등급 정보 업데이트 (데이터가 없으면 기본값 'free')
+    currentUser.email = session.user.email;
+    currentUser.status = (profile && profile.user_status) ? profile.user_status : 'free';
+    
+    if (userDisplayInfo) {
+      userDisplayInfo.innerText = `${currentUser.email}님 환영합니다! (등급: ${currentUser.status.toUpperCase()})`;
+    }
+    
+    console.log("현재 접속 유저 등급:", currentUser.status);
+  } else {
+    // B. 로그아웃 상태
+    if (guestView) guestView.style.display = 'block';
+    if (userView) userView.style.display = 'none';
+    
+    currentUser = { email: '', status: 'free' };
+    console.log("로그아웃 상태: 기본 등급 적용");
+  }
+});
+
+/**
+ * 2. 회원가입/로그인/로그아웃 함수
+ */
+async function handleSignUp() {
+  const email = document.getElementById('email').value;
+  const password = document.getElementById('password').value;
+  if (!email || !password) return alert("이메일과 비밀번호를 입력해주세요.");
+
+  const { data, error } = await supabase.auth.signUp({ email, password });
+  if (error) alert("가입 실패: " + error.message);
+  else alert("가입 확인 이메일을 보냈습니다! 메일함을 확인해주세요.");
+}
+
+async function handleLogin() {
+  const email = document.getElementById('email').value;
+  const password = document.getElementById('password').value;
+  if (!email || !password) return alert("이메일과 비밀번호를 입력해주세요.");
+
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) alert("로그인 실패: " + error.message);
+  // 성공 시 onAuthStateChange에서 감지하여 UI를 변경함
+}
+
+async function handleLogout() {
+  await supabase.auth.signOut();
+  alert("로그아웃 되었습니다.");
+  location.reload(); 
+}
+
+/**
+ * 3. 문제 데이터 로드
+ * 백엔드로 요청을 보낼 때 currentUser.status를 담아서 보냅니다.
+ */
 async function loadQuestions(filters = {}) {
   const questionArea = document.getElementById('question-area');
   questionArea.innerHTML = '<div class="loading">문제를 불러오는 중...</div>';
 
   try {
-    // Vercel 배포 시 생성할 API 엔드포인트로 요청
     const response = await fetch('/api/questions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         grade: document.getElementById('sel-grade')?.value,
         category: document.getElementById('sel-category')?.value,
-        userStatus: currentUser.status
+        userStatus: currentUser.status // 등급 정보 전달
       })
     });
     
+    // 서버 에러 응답 처리
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(errorText);
+    }
+
     allQuestions = await response.json();
     currentIndex = 0;
     renderQuestion();
@@ -29,7 +107,9 @@ async function loadQuestions(filters = {}) {
   }
 }
 
-// 2. 문제 렌더링 (기존 premium.html/free.html 로직 통합)
+/**
+ * 4. 문제 렌더링
+ */
 function renderQuestion() {
   const area = document.getElementById('question-area');
   if (allQuestions.length === 0) {
@@ -63,7 +143,9 @@ function renderQuestion() {
   `;
 }
 
-// 3. 정답 확인 로직
+/**
+ * 5. 정답 확인 및 문제 이동
+ */
 function checkAnswer(selected) {
   const correct = allQuestions[currentIndex].answer;
   const resultBox = document.getElementById('result-box');
