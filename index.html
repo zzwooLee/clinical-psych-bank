@@ -3,69 +3,61 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>임상심리사 퀴즈 - 메인</title>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <title>임상심리사 퀴즈 뱅크</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
     <header class="main-header">
-        <div class="container">
-            <h1>임상심리사 퀴즈 뱅크</h1>
-        </div>
+        <h1>임상심리사 퀴즈 뱅크</h1>
     </header>
 
-<main class="container main-auth-container">
-    <section id="auth-container" class="auth-section">
-        <div id="guest-view" class="auth-card shadow-lg">
-            <div class="auth-header">
-                <h2>환영합니다</h2>
-                <p>학습을 시작하려면 로그인해주세요.</p>
-            </div>
+    <main class="container main-auth-container">
+        <section id="auth-container" class="auth-section">
             
-            <div class="input-group">
-                <div class="input-wrapper">
-                    <span class="icon">📧</span>
-                    <input type="email" id="email" placeholder="이메일 주소">
+            <div id="guest-view" class="auth-card">
+                <div class="auth-header">
+                    <h2>환영합니다</h2>
+                    <p>학습을 시작하려면 로그인해주세요.</p>
                 </div>
-                <div class="input-wrapper">
-                    <span class="icon">🔒</span>
-                    <input type="password" id="password" placeholder="비밀번호">
+                
+                <div class="input-group">
+                    <div class="input-wrapper">
+                        <span class="icon">📧</span>
+                        <input type="email" id="email" placeholder="이메일 주소">
+                    </div>
+                    <div class="input-wrapper">
+                        <span class="icon">🔒</span>
+                        <input type="password" id="password" placeholder="비밀번호">
+                    </div>
+                </div>
+
+                <div class="button-group">
+                    <button class="btn-primary main-btn" onclick="handleLogin()">로그인</button>
+                    <button class="btn-secondary main-btn" onclick="handleSignUp()">회원가입</button>
+                </div>
+                
+                <p class="auth-footer-text">계정이 없으신가요? 정보를 입력 후 가입 버튼을 눌러주세요.</p>
+            </div>
+
+            <div id="user-view" class="auth-card" style="display: none;">
+                <div class="auth-header">
+                    <h2>학습 준비 완료</h2>
+                    <p id="user-display-info" style="font-weight: 500; color: #364d79;"></p>
+                </div>
+                <div class="button-group">
+                    <button class="btn-primary main-btn" onclick="loadQuestions()">무료 문제 시작하기</button>
+                    <button class="btn-logout-outline" onclick="handleLogout()">로그아웃</button>
                 </div>
             </div>
+        </section>
 
-            <div class="button-group">
-                <button class="btn-primary main-btn" onclick="handleLogin()">로그인</button>
-                <button class="btn-secondary main-btn" onclick="handleSignUp()">회원가입</button>
-            </div>
-            
-            <p class="auth-footer-text">계정이 없으신가요? 지금 바로 가입하세요.</p>
-        </div>
-
-        <div id="user-view" class="auth-card shadow-lg" style="display: none;">
-            <div class="auth-header">
-                <h2>학습 준비 완료</h2>
-                <p id="user-display-info">정보를 불러오는 중...</p>
-            </div>
-            <div class="button-group">
-                <button class="btn-primary main-btn" onclick="loadQuestions()">무료 문제 시작하기</button>
-                <button class="btn-outline main-btn" onclick="handleLogout()">로그아웃</button>
-            </div>
-        </div>
-    </section>
-
-    <section id="quiz-section" class="mt-5">
-        <div id="question-area"></div>
-    </section>
-</main>
+        <section id="quiz-section" style="width: 100%; margin-top: 40px;">
+            <div id="question-area"></div>
+        </section>
+    </main>
 
     <script src="common.js"></script>
-    <script>
-        // 페이지 로드 시 초기화 로직
-        window.onload = () => {
-            console.log("메인 페이지 초기화 완료");
-            // 로컬 스토리지 등에 저장된 세션이 있다면 여기서 자동 로그인 처리 가능
-        };
-    </script>
 </body>
 </html>
