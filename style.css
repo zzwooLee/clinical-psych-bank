@@ -1,27 +1,21 @@
 /* style.css */
 
-/* 1. 기본 폰트 및 초기화 */
 :root {
-    --primary-color: #364d79;    /* 메인 네이비 색상 */
-    --bg-color: #f0f2f5;         /* 전체 배경 회색 */
-    --card-bg: #ffffff;          /* 카드 흰색 배경 */
-    --text-main: #1a202c;        /* 메인 텍스트 */
-    --text-sub: #718096;         /* 보조 텍스트 */
-    --border-color: #e2e8f0;     /* 테두리 색상 */
-    --shadow: 0 4px 12px rgba(0, 0, 0, 0.05); /* 부드러운 그림자 */
+    --primary-color: #364d79;    /* 네이비 포인트 */
+    --bg-color: #f0f2f5;         /* 배경색 */
+    --card-bg: #ffffff;
+    --text-main: #1a202c;
+    --text-sub: #718096;
+    --border-color: #e2e8f0;
+    --shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 
-* {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-}
+* { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
     font-family: 'Noto Sans KR', sans-serif;
     background-color: var(--bg-color);
     color: var(--text-main);
-    line-height: 1.6;
 }
 
 .container {
@@ -30,28 +24,13 @@ body {
     padding: 20px;
 }
 
-/* 2. 상단 헤더 및 사용자 상태 바 */
-.premium-header {
-    text-align: center;
-    margin: 40px 0;
-}
-
-.premium-title {
-    font-size: 2rem;
-    font-weight: 700;
-}
-
-.premium-title .highlight {
-    color: var(--primary-color);
-    border-bottom: 3px solid rgba(54, 77, 121, 0.2);
-}
-
+/* 상단 정보 바 */
 .user-status-bar {
     display: flex;
     justify-content: flex-end;
     align-items: center;
     gap: 12px;
-    margin-bottom: 10px;
+    margin-bottom: 20px;
 }
 
 .user-info {
@@ -73,18 +52,33 @@ body {
 .btn-logout {
     background: none;
     border: 1px solid var(--border-color);
-    padding: 4px 10px;
+    padding: 5px 12px;
     border-radius: 6px;
     color: var(--text-sub);
     cursor: pointer;
     font-size: 0.85rem;
+    transition: 0.2s;
 }
 
 .btn-logout:hover {
     background-color: #edf2f7;
+    color: #1a202c;
 }
 
-/* 3. 필터 바 디자인 */
+/* 중앙 타이틀 */
+.premium-header {
+    text-align: center;
+    margin: 40px 0;
+}
+
+.premium-title {
+    font-size: 2.5rem;
+    font-weight: 800;
+    color: var(--text-main);
+    letter-spacing: -1px;
+}
+
+/* 필터 바 */
 .filter-bar {
     background: var(--card-bg);
     padding: 15px 25px;
@@ -93,125 +87,98 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 25px;
+    margin-bottom: 30px;
 }
 
-.filter-group {
-    display: flex;
-    gap: 10px;
-}
+.filter-group { display: flex; gap: 10px; }
 
 .filter-group select {
     padding: 8px 12px;
     border: 1px solid var(--border-color);
     border-radius: 8px;
-    outline: none;
-    font-size: 0.95rem;
     color: #4a5568;
 }
 
 .btn-random {
-    background-color: #fff;
+    background: #fff;
     color: var(--primary-color);
     border: 1px solid var(--primary-color);
-    padding: 8px 16px;
+    padding: 8px 18px;
     border-radius: 8px;
-    font-weight: 500;
+    font-weight: 600;
     cursor: pointer;
     transition: 0.2s;
 }
 
-.btn-random:hover {
-    background-color: #f0f4ff;
-}
+.btn-random:hover { background: #f0f4ff; }
 
-/* 4. 문제 카드 디자인 */
+/* 문제 카드 */
 .card {
     background: var(--card-bg);
     border-radius: 16px;
     padding: 40px;
     box-shadow: var(--shadow);
-    min-height: 400px;
-    display: flex;
-    flex-direction: column;
 }
 
 .card-header-info {
     font-size: 0.9rem;
     color: var(--text-sub);
-    margin-bottom: 15px;
+    margin-bottom: 10px;
 }
 
 .card-question {
-    font-size: 1.25rem;
+    font-size: 1.3rem;
     font-weight: 500;
     margin-bottom: 30px;
-    word-break: keep-all;
 }
 
-/* 5. 보기 버튼 스타일 */
-.choices {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    flex-grow: 1;
-}
+/* 보기 버튼 */
+.choices { display: flex; flex-direction: column; gap: 12px; }
 
 .choice-btn {
     display: flex;
     align-items: center;
-    padding: 16px 20px;
+    padding: 18px 25px;
     border: 1px solid var(--border-color);
-    border-radius: 10px;
+    border-radius: 12px;
     background: #fff;
     text-align: left;
-    font-size: 1.05rem;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: 0.2s;
 }
 
-.choice-btn:hover {
-    border-color: var(--primary-color);
-    background-color: #f8faff;
-}
+.choice-btn:hover { border-color: var(--primary-color); }
 
 .choice-num {
-    width: 24px;
-    height: 24px;
-    background: #edf2f7;
+    width: 26px;
+    height: 26px;
+    background: #f1f5f9;
     border-radius: 50%;
     display: inline-flex;
     justify-content: center;
     align-items: center;
     margin-right: 15px;
-    font-size: 0.8rem;
     font-weight: bold;
+    font-size: 0.8rem;
     color: var(--text-sub);
 }
 
-/* 6. 결과 메시지 및 푸터 */
-.result-box {
-    text-align: center;
-    font-weight: bold;
-    margin-bottom: 20px;
-}
-
+/* 푸터 */
 .card-footer {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-top: 30px;
     padding-top: 20px;
-    border-top: 1px solid #f7fafc;
+    border-top: 1px solid #f1f5f9;
 }
 
 .btn-nav {
-    padding: 8px 20px;
+    padding: 10px 24px;
     border: 1px solid var(--border-color);
     background: #fff;
     border-radius: 8px;
     cursor: pointer;
-    color: var(--text-sub);
 }
 
 .btn-nav.active {
@@ -220,70 +187,4 @@ body {
     font-weight: bold;
 }
 
-.btn-nav:disabled {
-    opacity: 0.3;
-    cursor: not-allowed;
-}
-
-.page-indicator {
-    font-size: 0.9rem;
-    color: var(--text-sub);
-}
-
-/* 7. 메인 로그인 페이지 전용 스타일 */
-.auth-section {
-    display: flex;
-    justify-content: center;
-    margin-top: 50px;
-}
-
-.auth-card {
-    background: #fff;
-    padding: 40px;
-    border-radius: 16px;
-    box-shadow: var(--shadow);
-    width: 100%;
-    max-width: 400px;
-    text-align: center;
-}
-
-.auth-card h2 { margin-bottom: 20px; font-size: 1.5rem; }
-
-.input-group {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    margin-bottom: 20px;
-}
-
-.input-group input {
-    padding: 12px;
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    outline: none;
-}
-
-.button-group {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-.btn-primary {
-    background-color: var(--primary-color);
-    color: #fff;
-    border: none;
-    padding: 12px;
-    border-radius: 8px;
-    cursor: pointer;
-    font-weight: bold;
-}
-
-.btn-secondary {
-    background: none;
-    border: 1px solid var(--primary-color);
-    color: var(--primary-color);
-    padding: 12px;
-    border-radius: 8px;
-    cursor: pointer;
-}
+.btn-nav:disabled { opacity: 0.3; }
