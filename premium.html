@@ -3,21 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>임상심리사 프리미엄 퀴즈</title>
-    <link rel="stylesheet" href="style.css"> <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <title>임상심리사 퀴즈 Premium</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
 </head>
-<body>
-
-    <header class="main-header">
-        <h1>임상심리사 퀴즈 <span class="badge premium-badge">Premium</span></h1>
-        <div id="auth-status">
-            </div>
-    </header>
+<body class="premium-body">
 
     <main class="container">
+        <header class="premium-header">
+            <h1 class="premium-title">임상심리사 퀴즈 <span class="highlight">Premium</span></h1>
+        </header>
+
         <div class="filter-bar">
             <div class="filter-group">
-                <select id="sel-grade">
+                <select id="sel-grade" onchange="updateSubjects()">
                     <option value="">급수 전체</option>
                     <option value="1">1급</option>
                     <option value="2">2급</option>
@@ -25,38 +24,64 @@
                 
                 <select id="sel-category">
                     <option value="">과목 전체</option>
-                    <option value="고급임상심리학">고급임상심리학</option>
-                    </select>
+                </select>
                 
                 <select id="sel-year">
                     <option value="">연도 전체</option>
-                    <option value="2023">2023년</option>
-                    <option value="2022">2022년</option>
-                </select>
+                    </select>
             </div>
             
-            <button class="btn-random" onclick="loadRandomQuestions()">
-                <i class="icon-random">🎲</i> 랜덤 출제
+            <button class="btn-random" onclick="loadQuestions()">
+                <span>🎲</span> 랜덤 출제
             </button>
         </div>
 
         <div id="question-area">
-            <div class="card dummy-card">
-                <div class="card-loading">
-                    문제를 불러오는 중이거나, 상단 필터를 선택 후 '랜덤 출제'를 눌러주세요.
-                </div>
+            <div class="card empty-state">
+                <p>상단 필터를 선택하고 <strong>랜덤 출제</strong> 버튼을 눌러주세요.</p>
             </div>
         </div>
-
     </main>
 
     <script src="common.js"></script>
     <script>
-        // 페이지 로드 시 프리미엄 등급 확인 및 초기화
-        window.onload = async () => {
-            await checkPremiumAuth(); // common.js에 정의할 인증 함수
-            // 초기 화면에 문제를 바로 띄우고 싶다면 아래 주석 해제
-            // loadRandomQuestions(); 
+        // 1. 급수에 따른 과목 자동 업데이트
+        const subjectData = {
+            "1": ["고급임상심리학", "고급이상심리학", "고급심리검사", "고급심리치료", "고급연구방법론"],
+            "2": ["심리학개론", "이상심리학", "심리검사", "임상심리학", "심리상담"]
+        };
+
+        function updateSubjects() {
+            const grade = document.getElementById('sel-grade').value;
+            const categorySelect = document.getElementById('sel-category');
+            
+            // 기존 옵션 초기화
+            categorySelect.innerHTML = '<option value="">과목 전체</option>';
+            
+            if (grade && subjectData[grade]) {
+                subjectData[grade].forEach(sub => {
+                    const opt = document.createElement('option');
+                    opt.value = sub;
+                    opt.text = sub;
+                    categorySelect.add(opt);
+                });
+            }
+        }
+
+        // 2. 연도 자동 생성 (2010년 ~ 2024년)
+        function initYears() {
+            const yearSelect = document.getElementById('sel-year');
+            const currentYear = new Date().getFullYear();
+            for (let y = 2024; y >= 2010; y--) {
+                const opt = document.createElement('option');
+                opt.value = y;
+                opt.text = y + "년";
+                yearSelect.add(opt);
+            }
+        }
+
+        window.onload = () => {
+            initYears();
         };
     </script>
 </body>
