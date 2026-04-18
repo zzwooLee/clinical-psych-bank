@@ -1,39 +1,26 @@
 /* common.js */
 
-// 1. 전역 상태
 let allQuestions = [];
 let currentIndex = 0;
 let currentUser = JSON.parse(sessionStorage.getItem('quiz_user')) || { email: '', status: 'free' };
 
-/**
- * 2. 회원가입
- */
-async function handleSignUp() {
-    const email = document.getElementById('email').value;
-    const password = document.getElementById('password').value;
-    if (!email || !password) return alert("이메일과 비밀번호를 입력해주세요.");
-
-    try {
-        const response = await fetch('/api/signup', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password })
-        });
-        const result = await response.json();
-        if (response.ok) alert("가입 확인 이메일을 보냈습니다!");
-        else alert("가입 실패: " + result.message);
-    } catch (error) {
-        alert("서버 통신 오류");
+// 페이지 로드 시 세션 복구 및 UI 반영
+document.addEventListener('DOMContentLoaded', () => {
+    const savedUser = sessionStorage.getItem('quiz_user');
+    if (savedUser) {
+        currentUser = JSON.parse(savedUser);
+        const emailDisp = document.getElementById('display-email');
+        const statusDisp = document.getElementById('display-status');
+        if (emailDisp) emailDisp.innerText = currentUser.email;
+        if (statusDisp) statusDisp.innerText = currentUser.status.toUpperCase();
+        updateUserUI();
     }
-}
+});
 
-/**
- * 3. 로그인 및 세션 유지
- */
 async function handleLogin() {
     const email = document.getElementById('email').value;
     const password = document.getElementById('password').value;
-    if (!email || !password) return alert("이메일과 비밀번호를 입력해주세요.");
+    if (!email || !password) return alert("입력창을 확인해주세요.");
 
     try {
         const response = await fetch('/api/login', {
@@ -45,41 +32,32 @@ async function handleLogin() {
         if (response.ok) {
             currentUser = { email: result.user.email, status: result.status };
             sessionStorage.setItem('quiz_user', JSON.stringify(currentUser));
-            
             if (currentUser.status === 'premium' || currentUser.status === 'admin') {
                 location.href = 'premium.html';
             } else {
                 alert("로그인 성공!");
                 updateUserUI();
             }
-        } else alert("로그인 실패: " + result.message);
-    } catch (error) {
-        alert("로그인 오류");
-    }
+        } else alert("실패: " + result.message);
+    } catch (e) { alert("서버 오류"); }
 }
 
-/**
- * 4. 로그아웃 (premium.html에서 작동 확인 완료)
- */
 function handleLogout() {
     if (confirm("로그아웃 하시겠습니까?")) {
         sessionStorage.removeItem('quiz_user');
-        currentUser = { email: '', status: 'free' };
         location.href = 'index.html';
     }
 }
 
-/**
- * 5. 랜덤 출제 (필터 연동 로직)
- */
+// 랜덤 출제 실행
 async function loadQuestions() {
     const area = document.getElementById('question-area');
-    if (area) area.innerHTML = '<div class="loading" style="text-align:center; padding:50px;">데이터를 불러오는 중...</div>';
+    if (area) area.innerHTML = '<div class="loading" style="text-align:center; padding:50px;">데이터 로드 중...</div>';
 
     const payload = {
         grade: document.getElementById('sel-grade')?.value,
         category: document.getElementById('sel-category')?.value,
-        year: document.getElementById('sel-year')?.value,
+        year: document.getElementById('sel-year')?.value, // 예: "2010"
         userStatus: currentUser.status
     };
 
@@ -89,33 +67,31 @@ async function loadQuestions() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
-        
-        if (!response.ok) throw new Error("로드 실패");
-
         allQuestions = await response.json();
         currentIndex = 0;
         renderQuestion();
-    } catch (error) {
-        if (area) area.innerHTML = '<div class="error" style="text-align:center; padding:50px;">문제를 불러오지 못했습니다.</div>';
+    } catch (e) {
+        if (area) area.innerHTML = '<div class="error" style="text-align:center; padding:50px;">불러오기 실패</div>';
     }
 }
 
-/**
- * 6. 문제 카드 렌더링
- */
+// 문제 렌더링 (exam_date 추출 반영)
 function renderQuestion() {
     const area = document.getElementById('question-area');
     if (!area || allQuestions.length === 0) {
-        if (area) area.innerHTML = '<div class="card" style="text-align:center; padding:50px;">해당 조건의 문제가 데이터베이스에 없습니다.</div>';
+        if (area) area.innerHTML = '<div class="card" style="text-align:center; padding:50px;">조건에 맞는 문제가 없습니다.</div>';
         return;
     }
 
     const q = allQuestions[currentIndex];
+    // exam_date(20100905)에서 연도(2010)만 추출
+    const displayYear = q.exam_date ? String(q.exam_date).substring(0, 4) + '년' : '';
+
     area.innerHTML = `
         <div class="card">
             <div class="card-header-info">
                 <span>문제 ${currentIndex + 1}</span>
-                <span>${q.category || ''} ${q.year ? '(' + q.year + '년)' : ''}</span>
+                <span>${q.category || ''} ${displayYear ? '(' + displayYear + ')' : ''}</span>
             </div>
             <div class="card-question">${q.question}</div>
             <div class="choices">
@@ -136,14 +112,10 @@ function renderQuestion() {
     `;
 }
 
-/**
- * 7. 정답 확인
- */
 function checkAnswer(selected) {
     const correct = allQuestions[currentIndex].answer;
     const resultBox = document.getElementById('result-box');
     const btns = document.querySelectorAll('.choice-btn');
-
     btns.forEach(btn => btn.style.pointerEvents = 'none');
 
     if (selected == correct) {
@@ -164,14 +136,10 @@ function changeQuestion(step) {
     renderQuestion();
 }
 
-/**
- * 8. index.html UI 갱신
- */
 function updateUserUI() {
     const guestView = document.getElementById('guest-view');
     const userView = document.getElementById('user-view');
     const info = document.getElementById('user-display-info');
-
     if (currentUser.email && guestView && userView) {
         guestView.style.display = 'none';
         userView.style.display = 'block';
