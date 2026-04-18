@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>임상심리사 국가고시 정복</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="app-header">
+    <div class="logo">임상심리사 퀴즈</div>
+    <div id="user-info">로그인 정보 확인 중...</div>
+  </header>
+
+  <div class="container">
+    <div id="premium-banner" style="display:none;">
+      <p>더 많은 문제와 AI 예상문제를 만나보세요!</p>
+      <button onclick="showPaymentInfo()">프리미엄 신청</button>
+    </div>
+
+    <div class="filter-bar">
+      <select id="sel-grade"><option value="1">1급</option></select>
+      <button onclick="loadQuestions()">문제 가져오기</button>
+    </div>
+    
+    <div id="question-area"></div>
+  </div>
+
+  <script>
+    // [삭제됨] google.script.run
+    // [대체됨] 표준 fetch API 호출
+    async function loadQuestions(filter) {
+      try {
+        const response = await fetch('/api/questions', {
+          method: 'POST',
+          body: JSON.stringify(filter)
+        });
+        const questions = await response.json();
+        renderQuestions(questions);
+      } catch (err) {
+        console.error("데이터 로드 실패:", err);
+      }
+    }
+
+    function renderQuestions(data) {
+      const area = document.getElementById('question-area');
+      // 기존 렌더링 로직(HTML 생성)은 그대로 유지
+      area.innerHTML = data.map(q => `<div>${q.question}</div>`).join('');
+    }
+  </script>
+</body>
+</html>

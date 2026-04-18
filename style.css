@@ -1,0 +1,70 @@
+/* style.css */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=Noto+Serif+KR:wght@600&display=swap');
+
+:root {
+  --bg       : #f5f5f0;
+  --surface  : #ffffff;
+  --primary  : #2d5a8e;
+  --primary-l: #e8f0fb;
+  --accent   : #e8734a;
+  --text-1   : #1a1a2e;
+  --text-2   : #555566;
+  --text-3   : #9999aa;
+  --border   : #e0e0e8;
+  --success  : #2e7d52;
+  --danger   : #c0392b;
+  --radius   : 12px;
+  --shadow   : 0 2px 12px rgba(0,0,0,0.08);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Noto Sans KR', sans-serif;
+  background: var(--bg);
+  color: var(--text-1);
+  min-height: 100vh;
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+.container { max-width: 800px; margin: 0 auto; padding: 20px; }
+
+.app-header {
+  background: var(--surface);
+  padding: 16px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.logo { font-family: 'Noto Serif KR', serif; font-size: 20px; color: var(--primary); font-weight: 600; }
+
+/* 문제 카드 스타일 */
+.card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 24px;
+  box-shadow: var(--shadow);
+  margin-bottom: 20px;
+}
+
+.choice-btn {
+  width: 100%;
+  text-align: left;
+  padding: 14px 18px;
+  margin-bottom: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.choice-btn:hover { background: var(--primary-l); border-color: var(--primary); }
+.choice-btn.correct { background: #eafaf2; border-color: var(--success); color: var(--success); font-weight: bold; }
+.choice-btn.wrong { background: #fdf0ee; border-color: var(--danger); color: var(--danger); }
