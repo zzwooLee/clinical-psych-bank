@@ -5,7 +5,9 @@ const SUPABASE_KEY = process.env.SUPABASE_KEY;
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ message: 'Method Not Allowed' });
 
-  const { grade, category, examDate, userStatus, random } = req.body;
+// req.body가 없을 경우를 대비해 빈 객체({})를 기본값으로 설정합니다.
+  const body = req.body || {};
+  const { grade, category, examDate, userStatus, random } = body;
 
   // 1. 기본 API 쿼리 빌드
   let query = `${SUPABASE_URL}/rest/v1/questions?select=*`;
