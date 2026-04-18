@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>임상심리사 프리미엄 퀴즈</title>
+    <link rel="stylesheet" href="style.css"> <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+    <header class="main-header">
+        <h1>임상심리사 퀴즈 <span class="badge premium-badge">Premium</span></h1>
+        <div id="auth-status">
+            </div>
+    </header>
+
+    <main class="container">
+        <div class="filter-bar">
+            <div class="filter-group">
+                <select id="sel-grade">
+                    <option value="">급수 전체</option>
+                    <option value="1">1급</option>
+                    <option value="2">2급</option>
+                </select>
+                
+                <select id="sel-category">
+                    <option value="">과목 전체</option>
+                    <option value="고급임상심리학">고급임상심리학</option>
+                    </select>
+                
+                <select id="sel-year">
+                    <option value="">연도 전체</option>
+                    <option value="2023">2023년</option>
+                    <option value="2022">2022년</option>
+                </select>
+            </div>
+            
+            <button class="btn-random" onclick="loadRandomQuestions()">
+                <i class="icon-random">🎲</i> 랜덤 출제
+            </button>
+        </div>
+
+        <div id="question-area">
+            <div class="card dummy-card">
+                <div class="card-loading">
+                    문제를 불러오는 중이거나, 상단 필터를 선택 후 '랜덤 출제'를 눌러주세요.
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <script src="common.js"></script>
+    <script>
+        // 페이지 로드 시 프리미엄 등급 확인 및 초기화
+        window.onload = async () => {
+            await checkPremiumAuth(); // common.js에 정의할 인증 함수
+            // 초기 화면에 문제를 바로 띄우고 싶다면 아래 주석 해제
+            // loadRandomQuestions(); 
+        };
+    </script>
+</body>
+</html>
