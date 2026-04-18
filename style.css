@@ -188,3 +188,125 @@ body {
 }
 
 .btn-nav:disabled { opacity: 0.3; }
+
+/* style.css 하단에 추가 또는 덮어쓰기 */
+
+/* 메인 로그인 컨테이너 중앙 정렬 */
+.main-auth-container {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    min-height: 80vh; /* 화면 높이에 맞춰 중앙 배치 */
+}
+
+.auth-card {
+    background: #fff;
+    padding: 40px 30px;
+    border-radius: 20px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+    width: 100%;
+    max-width: 420px;
+    transition: transform 0.3s ease;
+}
+
+.auth-header {
+    margin-bottom: 30px;
+    text-align: center;
+}
+
+.auth-header h2 {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--primary-color);
+    margin-bottom: 8px;
+}
+
+.auth-header p {
+    color: var(--text-sub);
+    font-size: 0.95rem;
+}
+
+/* 입력창 스타일 강화 */
+.input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-bottom: 25px;
+}
+
+.input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.input-wrapper .icon {
+    position: absolute;
+    left: 15px;
+    font-size: 1.1rem;
+}
+
+.input-wrapper input {
+    width: 100%;
+    padding: 14px 14px 14px 45px; /* 아이콘 공간 확보 */
+    border: 1.5px solid #eef0f2;
+    border-radius: 12px;
+    font-size: 1rem;
+    outline: none;
+    transition: all 0.2s;
+    background-color: #f9fbff;
+}
+
+.input-wrapper input:focus {
+    border-color: var(--primary-color);
+    background-color: #fff;
+    box-shadow: 0 0 0 4px rgba(54, 77, 121, 0.1);
+}
+
+/* 버튼 스타일 강화 */
+.main-btn {
+    width: 100%;
+    padding: 14px;
+    border-radius: 12px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-primary {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    margin-bottom: 10px;
+}
+
+.btn-primary:hover {
+    background-color: #2a3d61;
+    transform: translateY(-2px);
+}
+
+.btn-secondary {
+    background-color: #fff;
+    color: var(--primary-color);
+    border: 1.5px solid var(--primary-color);
+}
+
+.btn-secondary:hover {
+    background-color: #f0f4ff;
+}
+
+.auth-footer-text {
+    margin-top: 20px;
+    font-size: 0.85rem;
+    color: var(--text-sub);
+    text-align: center;
+}
+
+.btn-outline {
+    background: none;
+    border: 1px solid #ddd;
+    color: #888;
+    margin-top: 10px;
+}
