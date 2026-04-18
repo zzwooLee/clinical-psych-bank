@@ -348,3 +348,46 @@ body {
     color: #2d3748;
     border-color: #a0aec0;
 }
+
+/* 결과 메시지 공통 */
+.result-msg {
+    font-size: 1.2rem;
+    font-weight: 700;
+    margin-bottom: 10px;
+}
+.result-msg.success { color: #2ecc71; }
+.result-msg.error { color: #e74c3c; }
+
+/* 정답 안내 텍스트 */
+.correct-info {
+    background-color: #f8f9fa;
+    padding: 10px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    font-size: 1rem;
+    color: #4a5568;
+}
+
+/* 해설 박스 디자인 */
+.explanation-box {
+    text-align: left;
+    background-color: #f0f4ff;
+    border-left: 4px solid var(--primary-color);
+    padding: 15px;
+    border-radius: 4px 12px 12px 4px;
+    margin-top: 15px;
+}
+
+.exp-title {
+    font-weight: 700;
+    color: var(--primary-color);
+    margin-bottom: 8px;
+    font-size: 0.95rem;
+}
+
+.exp-content {
+    font-size: 0.95rem;
+    color: #2d3748;
+    line-height: 1.6;
+    word-break: keep-all;
+}
