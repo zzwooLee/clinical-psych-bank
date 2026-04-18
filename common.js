@@ -2,7 +2,50 @@
 let allQuestions = [];
 let currentIndex = 0;
 // 초기 사용자 상태 설정 (로그인 전 기본값)
-let currentUser = { email: '', status: 'free' }; 
+/* common.js */
+let currentUser = { email: '', status: 'free', token: null };
+
+// 회원가입 호출
+async function handleSignUp() {
+  const email = document.getElementById('email').value;
+  const password = document.getElementById('password').value;
+
+  const response = await fetch('/api/signup', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password })
+  });
+
+  const result = await response.json();
+  if (response.ok) alert("가입 확인 이메일을 확인해주세요!");
+  else alert("에러: " + result.message);
+}
+
+// 로그인 호출
+async function handleLogin() {
+  const email = document.getElementById('email').value;
+  const password = document.getElementById('password').value;
+
+  const response = await fetch('/api/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password })
+  });
+
+  const result = await response.json();
+  if (response.ok) {
+    currentUser.email = result.user.email;
+    currentUser.status = result.status;
+    currentUser.token = result.session.access_token; // 보안을 위해 세션 토큰 보관
+    
+    document.getElementById('guest-view').style.display = 'none';
+    document.getElementById('user-view').style.display = 'block';
+    document.getElementById('user-display-info').innerText = 
+      `${currentUser.email}님 (등급: ${currentUser.status.toUpperCase()})`;
+  } else {
+    alert("로그인 실패: " + result.message);
+  }
+}
 
 /**
  * 1. 로그인 상태 실시간 감지 및 UI 업데이트
