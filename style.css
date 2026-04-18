@@ -327,3 +327,24 @@ body {
     letter-spacing: -1px;
     margin: 0;
 }
+
+/* index.html의 로그아웃 버튼 스타일 */
+.btn-logout-main {
+    background-color: transparent;
+    border: 1px solid #cbd5e0;
+    color: #718096;
+    padding: 12px;
+    border-radius: 12px;
+    font-size: 0.95rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    width: 100%; /* 위쪽 파란 버튼과 너비를 맞춤 */
+    margin-top: 10px;
+}
+
+.btn-logout-main:hover {
+    background-color: #f7fafc;
+    color: #2d3748;
+    border-color: #a0aec0;
+}
