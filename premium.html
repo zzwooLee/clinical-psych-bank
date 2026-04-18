@@ -52,57 +52,67 @@
     </main>
 
     <script src="common.js"></script>
-<script>
-    // 1. 과목 데이터 및 업데이트 로직 (동일)
-    const subjectData = {
-        "1": ["고급임상심리학", "고급이상심리학", "고급심리검사", "고급심리치료", "고급연구방법론"],
-        "2": ["심리학개론", "이상심리학", "심리검사", "임상심리학", "심리상담"]
-    };
+    <script>
+        // 급수별 과목 데이터
+        const subjectData = {
+            "1": ["고급임상심리학", "고급이상심리학", "고급심리검사", "고급심리치료", "고급연구방법론"],
+            "2": ["심리학개론", "이상심리학", "심리검사", "임상심리학", "심리상담"]
+        };
 
-    function updateSubjects() {
-        const grade = document.getElementById('sel-grade').value;
-        const categorySelect = document.getElementById('sel-category');
-        categorySelect.innerHTML = '<option value="">과목 전체</option>';
-        if (grade && subjectData[grade]) {
-            subjectData[grade].forEach(sub => {
-                const opt = document.createElement('option');
-                opt.value = sub; opt.text = sub;
-                categorySelect.add(opt);
-            });
+        // 과목 드롭다운 업데이트
+        function updateSubjects() {
+            const grade = document.getElementById('sel-grade').value;
+            const categorySelect = document.getElementById('sel-category');
+            categorySelect.innerHTML = '<option value="">과목 전체</option>';
+            
+            if (grade && subjectData[grade]) {
+                subjectData[grade].forEach(sub => {
+                    const opt = document.createElement('option');
+                    opt.value = sub;
+                    opt.text = sub;
+                    categorySelect.add(opt);
+                });
+            }
         }
-    }
 
-    // 2. 연도 초기화
-    function initYears() {
-        const yearSelect = document.getElementById('sel-year');
-        if(!yearSelect) return;
-        const currentYear = new Date().getFullYear();
-        for (let y = currentYear; y >= 2010; y--) {
-            const opt = document.createElement('option');
-            opt.value = y; opt.text = y + "년";
-            yearSelect.add(opt);
+        // [신규] DB에 존재하는 연도만 가져와서 필터 채우기
+        async function initYears() {
+            const yearSelect = document.getElementById('sel-year');
+            if (!yearSelect) return;
+
+            try {
+                const response = await fetch('/api/years');
+                if (!response.ok) throw new Error("연도 로드 실패");
+                const years = await response.json();
+
+                yearSelect.innerHTML = '<option value="">연도 전체</option>';
+                if (years && years.length > 0) {
+                    years.forEach(year => {
+                        const opt = document.createElement('option');
+                        opt.value = year;
+                        opt.text = year + "년";
+                        yearSelect.add(opt);
+                    });
+                }
+            } catch (error) {
+                console.error("연도 데이터 로드 오류:", error);
+            }
         }
-    }
 
-    // 3. 페이지 로드 시 통합 실행
-    document.addEventListener('DOMContentLoaded', () => {
-        initYears();
-        
-        // common.js에 선언된 currentUser를 통해 이메일 표시
-        const savedUser = sessionStorage.getItem('quiz_user');
-        if (savedUser) {
-            const user = JSON.parse(savedUser);
-            // 이메일과 등급 표시
-            if(document.getElementById('display-email')) 
+        // 페이지 로드 시 초기화
+        document.addEventListener('DOMContentLoaded', () => {
+            initYears(); // 연도 동적 로딩
+            
+            // 세션 정보 즉시 표시
+            const savedUser = sessionStorage.getItem('quiz_user');
+            if (savedUser) {
+                const user = JSON.parse(savedUser);
                 document.getElementById('display-email').innerText = user.email;
-            if(document.getElementById('display-status')) 
                 document.getElementById('display-status').innerText = user.status.toUpperCase();
-        } else {
-            // 로그인 정보가 없으면 index로 보냄 (보안)
-            alert("로그인이 필요합니다.");
-            location.href = 'index.html';
-        }
-    });
-</script>
+            } else {
+                location.href = 'index.html'; // 로그인 정보 없으면 튕김
+            }
+        });
+    </script>
 </body>
 </html>
