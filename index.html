@@ -25,28 +25,32 @@
     
     <div id="question-area"></div>
   </div>
-
   <script>
-    // [삭제됨] google.script.run
-    // [대체됨] 표준 fetch API 호출
-    async function loadQuestions(filter) {
-      try {
-        const response = await fetch('/api/questions', {
-          method: 'POST',
-          body: JSON.stringify(filter)
-        });
-        const questions = await response.json();
-        renderQuestions(questions);
-      } catch (err) {
-        console.error("데이터 로드 실패:", err);
-      }
-    }
-    
+    // 페이지 로드 시 초기화
+    window.onload = () => {
+      console.log("앱 초기화 완료");
+    };
+  
+    // 문제 데이터를 받아서 화면에 그리는 함수
     function renderQuestions(data) {
-      // 전역 변수에 데이터를 저장하고 첫 번째 문제를 렌더링합니다.
+      console.log("받은 데이터:", data);
+      
+      if (!data || data.length === 0) {
+        document.getElementById('question-area').innerHTML = 
+          '<div style="padding:20px; text-align:center;">조건에 맞는 문제가 없습니다.</div>';
+        return;
+      }
+  
+      // common.js에 있는 전역 변수들에 데이터 할당
       allQuestions = data; 
       currentIndex = 0;
-      renderQuestion(); // common.js에 정의된 카드 렌더링 함수 호출
+      
+      // common.js의 renderQuestion()을 호출하여 첫 번째 문제 카드를 생성
+      if (typeof renderQuestion === 'function') {
+        renderQuestion();
+      } else {
+        console.error("renderQuestion 함수를 찾을 수 없습니다. common.js가 잘 로드되었는지 확인하세요.");
+      }
     }
   </script>
 </body>
