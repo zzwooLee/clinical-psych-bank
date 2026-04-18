@@ -52,56 +52,57 @@
     </main>
 
     <script src="common.js"></script>
-    <script>
-        // 급수별 과목 데이터
-        const subjectData = {
-            "1": ["고급임상심리학", "고급이상심리학", "고급심리검사", "고급심리치료", "고급연구방법론"],
-            "2": ["심리학개론", "이상심리학", "심리검사", "임상심리학", "심리상담"]
-        };
+<script>
+    // 1. 과목 데이터 및 업데이트 로직 (동일)
+    const subjectData = {
+        "1": ["고급임상심리학", "고급이상심리학", "고급심리검사", "고급심리치료", "고급연구방법론"],
+        "2": ["심리학개론", "이상심리학", "심리검사", "임상심리학", "심리상담"]
+    };
 
-        // 과목 드롭다운 업데이트
-        function updateSubjects() {
-            const grade = document.getElementById('sel-grade').value;
-            const categorySelect = document.getElementById('sel-category');
-            categorySelect.innerHTML = '<option value="">과목 전체</option>';
-            
-            if (grade && subjectData[grade]) {
-                subjectData[grade].forEach(sub => {
-                    const opt = document.createElement('option');
-                    opt.value = sub;
-                    opt.text = sub;
-                    categorySelect.add(opt);
-                });
-            }
-        }
-
-        // 연도 옵션 자동 생성
-        function initYears() {
-            const yearSelect = document.getElementById('sel-year');
-            const currentYear = new Date().getFullYear();
-            for (let y = currentYear; y >= 2010; y--) {
+    function updateSubjects() {
+        const grade = document.getElementById('sel-grade').value;
+        const categorySelect = document.getElementById('sel-category');
+        categorySelect.innerHTML = '<option value="">과목 전체</option>';
+        if (grade && subjectData[grade]) {
+            subjectData[grade].forEach(sub => {
                 const opt = document.createElement('option');
-                opt.value = y;
-                opt.text = y + "년";
-                yearSelect.add(opt);
-            }
+                opt.value = sub; opt.text = sub;
+                categorySelect.add(opt);
+            });
         }
+    }
 
-        // 페이지 로드 시 실행되는 초기화 함수
-        document.addEventListener('DOMContentLoaded', () => {
-            initYears();
-            
-            // 세션스토리지에서 유저 정보를 즉시 가져와 표시
-            const savedUser = sessionStorage.getItem('quiz_user');
-            if (savedUser) {
-                const user = JSON.parse(savedUser);
+    // 2. 연도 초기화
+    function initYears() {
+        const yearSelect = document.getElementById('sel-year');
+        if(!yearSelect) return;
+        const currentYear = new Date().getFullYear();
+        for (let y = currentYear; y >= 2010; y--) {
+            const opt = document.createElement('option');
+            opt.value = y; opt.text = y + "년";
+            yearSelect.add(opt);
+        }
+    }
+
+    // 3. 페이지 로드 시 통합 실행
+    document.addEventListener('DOMContentLoaded', () => {
+        initYears();
+        
+        // common.js에 선언된 currentUser를 통해 이메일 표시
+        const savedUser = sessionStorage.getItem('quiz_user');
+        if (savedUser) {
+            const user = JSON.parse(savedUser);
+            // 이메일과 등급 표시
+            if(document.getElementById('display-email')) 
                 document.getElementById('display-email').innerText = user.email;
+            if(document.getElementById('display-status')) 
                 document.getElementById('display-status').innerText = user.status.toUpperCase();
-            } else {
-                // 로그인 정보가 없으면 메인으로 리다이렉트 (선택 사항)
-                // location.href = 'index.html';
-            }
-        });
-    </script>
+        } else {
+            // 로그인 정보가 없으면 index로 보냄 (보안)
+            alert("로그인이 필요합니다.");
+            location.href = 'index.html';
+        }
+    });
+</script>
 </body>
 </html>
