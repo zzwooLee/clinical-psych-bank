@@ -21,12 +21,15 @@ export default async function handler(req, res) {
       query = query.eq('category', category);
     }
 
-    // 3. 연도 필터링 (exam_date가 YYYYMMDD 형식이므로 LIKE 'YYYY%' 사용)
-    if (year) {
-      query = query.like('exam_date', `${year}%`);
+    // 3. 연도 필터링 (범위 검색으로 변경하여 데이터 타입 충돌 방지)
+    // 20100000 이상 20109999 이하의 날짜를 찾습니다.
+    if (year && year.length === 4) {
+      const start = parseInt(year + "0000");
+      const end = parseInt(year + "9999");
+      query = query.gte('exam_date', start).lte('exam_date', end);
     }
 
-    // 4. 등급 권한 (예: free 등급은 10개로 제한 등)
+    // 4. 등급 제한
     if (userStatus === 'free') {
       query = query.limit(10);
     }
@@ -35,11 +38,15 @@ export default async function handler(req, res) {
 
     if (error) throw error;
 
-    // 문제를 랜덤하게 섞어서 반환
+    // 데이터가 없는 경우 빈 배열 반환
+    if (!data) return res.status(200).json([]);
+
+    // 랜덤 섞기
     const shuffled = data.sort(() => 0.5 - Math.random());
     
     res.status(200).json(shuffled);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error("Server Error:", error.message);
+    res.status(500).json({ message: "서버 내부 오류: " + error.message });
   }
 }
