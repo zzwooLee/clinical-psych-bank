@@ -21,7 +21,6 @@
                     <h2>환영합니다</h2>
                     <p>학습을 시작하려면 로그인해주세요.</p>
                 </div>
-                
                 <div class="input-group">
                     <div class="input-wrapper">
                         <span class="icon">📧</span>
@@ -32,23 +31,20 @@
                         <input type="password" id="password" placeholder="비밀번호">
                     </div>
                 </div>
-
                 <div class="button-group">
                     <button class="btn-primary main-btn" onclick="handleLogin()">로그인</button>
                     <button class="btn-secondary main-btn" onclick="handleSignUp()">회원가입</button>
                 </div>
-                
-                <p class="auth-footer-text">계정이 없으신가요? 정보를 입력 후 가입 버튼을 눌러주세요.</p>
             </div>
 
             <div id="user-view" class="auth-card" style="display: none;">
                 <div class="auth-header">
                     <h2>학습 준비 완료</h2>
-                    <p id="user-display-info" style="font-weight: 500; color: #364d79;"></p>
+                    <p id="user-display-info" style="margin-bottom: 20px;"></p>
                 </div>
                 <div class="button-group">
                     <button class="btn-primary main-btn" onclick="loadQuestions()">무료 문제 시작하기</button>
-                    <button class="btn-logout-outline" onclick="handleLogout()">로그아웃</button>
+                    <button class="btn-logout-main" onclick="handleLogout()">로그아웃</button>
                 </div>
             </div>
         </section>
@@ -58,6 +54,6 @@
         </section>
     </main>
 
-    <script src="common.js"></script>
+    <script src="common.js" defer></script>
 </body>
 </html>
