@@ -1,52 +1,45 @@
-// api/questions.js
-const SUPABASE_URL = process.env.SUPABASE_URL; // Vercel 환경변수에 설정
-const SUPABASE_KEY = process.env.SUPABASE_KEY;
+/* api/questions.js */
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') return res.status(405).json({ message: 'Method Not Allowed' });
+  if (req.method !== 'POST') return res.status(405).json({ message: 'Method not allowed' });
 
-// req.body가 없을 경우를 대비해 빈 객체({})를 기본값으로 설정합니다.
-  const body = req.body || {};
-  const { grade, category, examDate, userStatus, random } = body;
-
-  // 1. 기본 API 쿼리 빌드
-  let query = `${SUPABASE_URL}/rest/v1/questions?select=*`;
-
-  // 2. 권한 및 필터 조건 적용
-  if (userStatus === 'free') {
-    query += '&is_premium=eq.false'; // 무료 유저는 프리미엄 문제 제외
-  }
-  if (grade) {
-    query += `&grade=eq.${grade}`;
-  }
-  if (category) {
-    query += `&category=eq.${encodeURIComponent(category)}`;
-  }
-  if (examDate) {
-    const year = parseInt(examDate);
-    query += `&exam_date=gte.${year}0000&exam_date=lte.${year}9999`;
-  }
+  const { grade, category, year, userStatus } = req.body;
 
   try {
-    const response = await fetch(query, {
-      method: 'GET',
-      headers: {
-        'apikey': SUPABASE_KEY,
-        'Authorization': `Bearer ${SUPABASE_KEY}`,
-        'Content-Type': 'application/json'
-      }
-    });
+    let query = supabase.from('questions').select('*');
 
-    let data = await response.json();
-
-    // 3. 무작위 셔플 로직 (기존 .gs 로직 그대로 이식)
-    if (random) {
-      data.sort(() => Math.random() - 0.5);
+    // 1. 급수 필터링
+    if (grade) {
+      query = query.eq('grade', grade);
     }
 
-    // 최대 20개까지만 반환
-    return res.status(200).json(data.slice(0, 20));
+    // 2. 과목 필터링
+    if (category) {
+      query = query.eq('category', category);
+    }
+
+    // 3. 연도 필터링 (exam_date가 YYYYMMDD 형식이므로 LIKE 'YYYY%' 사용)
+    if (year) {
+      query = query.like('exam_date', `${year}%`);
+    }
+
+    // 4. 등급 권한 (예: free 등급은 10개로 제한 등)
+    if (userStatus === 'free') {
+      query = query.limit(10);
+    }
+
+    const { data, error } = await query;
+
+    if (error) throw error;
+
+    // 문제를 랜덤하게 섞어서 반환
+    const shuffled = data.sort(() => 0.5 - Math.random());
+    
+    res.status(200).json(shuffled);
   } catch (error) {
-    return res.status(500).json({ error: error.message });
+    res.status(500).json({ message: error.message });
   }
 }
