@@ -41,11 +41,12 @@
         console.error("데이터 로드 실패:", err);
       }
     }
-
+    
     function renderQuestions(data) {
-      const area = document.getElementById('question-area');
-      // 기존 렌더링 로직(HTML 생성)은 그대로 유지
-      area.innerHTML = data.map(q => `<div>${q.question}</div>`).join('');
+      // 전역 변수에 데이터를 저장하고 첫 번째 문제를 렌더링합니다.
+      allQuestions = data; 
+      currentIndex = 0;
+      renderQuestion(); // common.js에 정의된 카드 렌더링 함수 호출
     }
   </script>
 </body>
