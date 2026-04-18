@@ -39,9 +39,13 @@ async function handleSignUp() {
 /**
  * 3. 로그인 함수
  */
-async function handleLogin() {
+async function handleLogin(e) {
+    // 1. 이벤트 전파 방지 (버튼이 form 안에 있을 경우 대비)
+    if (e && e.preventDefault) e.preventDefault();
+
     const email = document.getElementById('email').value;
     const password = document.getElementById('password').value;
+
     if (!email || !password) return alert("정보를 입력해주세요.");
 
     try {
@@ -50,18 +54,31 @@ async function handleLogin() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, password })
         });
+
+        // 응답을 받기 전에 채널이 닫히지 않도록 데이터 처리를 기다림
         const result = await response.json();
+
         if (response.ok) {
             currentUser = { email: result.user.email, status: result.status };
             sessionStorage.setItem('quiz_user', JSON.stringify(currentUser));
-            if (currentUser.status === 'premium' || currentUser.status === 'admin') {
-                location.href = 'premium.html';
-            } else {
-                alert("로그인 성공!");
-                updateUserUI();
-            }
-        } else alert(result.message);
-    } catch (e) { alert("로그인 서버 오류"); }
+            
+            // 페이지 이동 전 약간의 여유(짧은 지연)를 주어 메시지 채널 안정화
+            setTimeout(() => {
+                if (currentUser.status === 'premium' || currentUser.status === 'admin') {
+                    location.href = 'premium.html';
+                } else {
+                    alert("로그인 성공!");
+                    updateUserUI();
+                }
+            }, 100); 
+        } else {
+            alert(result.message);
+        }
+    } catch (error) {
+        console.error("Login Error:", error);
+        // 채널 오류가 발생하더라도 사용자에게는 명확한 메시지 전달
+        if (!navigator.onLine) alert("네트워크 연결을 확인해주세요.");
+    }
 }
 
 /**
