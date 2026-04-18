@@ -15,51 +15,49 @@
         </div>
     </header>
 
-    <main class="container">
-        <section id="auth-container" class="auth-section">
-            <div id="guest-view" class="auth-card">
-                <h2>로그인 후 이용 가능합니다</h2>
-                <div class="input-group">
-                    <input type="email" id="email" placeholder="이메일 주소">
-                    <input type="password" id="password" placeholder="비밀번호">
-                </div>
-                <div class="button-group">
-                    <button class="btn-primary" onclick="handleLogin()">로그인</button>
-                    <button class="btn-secondary" onclick="handleSignUp()">회원가입</button>
-                </div>
-                <p class="auth-note">가입 시 기본 FREE 등급이 부여됩니다.</p>
-            </div>
-
-            <div id="user-view" class="auth-card" style="display: none;">
-                <h2>학습 시스템 접속</h2>
-                <div class="user-status-box">
-                    <span id="user-display-info">로그인 정보 확인 중...</span>
-                </div>
-                <div class="button-group">
-                    <button class="btn-primary" onclick="loadQuestions()">무료 문제 풀기</button>
-                    <button class="btn-outline" onclick="handleLogout()">로그아웃</button>
-                </div>
-            </div>
-        </section>
-
-        <hr class="divider">
-
-        <section id="quiz-section">
-            <div class="filter-bar" id="free-filter" style="display: none;">
-                <select id="sel-grade">
-                    <option value="">급수 선택</option>
-                    <option value="1">1급</option>
-                    <option value="2">2급</option>
-                </select>
+<main class="container main-auth-container">
+    <section id="auth-container" class="auth-section">
+        <div id="guest-view" class="auth-card shadow-lg">
+            <div class="auth-header">
+                <h2>환영합니다</h2>
+                <p>학습을 시작하려면 로그인해주세요.</p>
             </div>
             
-            <div id="question-area">
-                <div class="welcome-msg">
-                    <p>로그인 후 문제를 불러와주세요.</p>
+            <div class="input-group">
+                <div class="input-wrapper">
+                    <span class="icon">📧</span>
+                    <input type="email" id="email" placeholder="이메일 주소">
+                </div>
+                <div class="input-wrapper">
+                    <span class="icon">🔒</span>
+                    <input type="password" id="password" placeholder="비밀번호">
                 </div>
             </div>
-        </section>
-    </main>
+
+            <div class="button-group">
+                <button class="btn-primary main-btn" onclick="handleLogin()">로그인</button>
+                <button class="btn-secondary main-btn" onclick="handleSignUp()">회원가입</button>
+            </div>
+            
+            <p class="auth-footer-text">계정이 없으신가요? 지금 바로 가입하세요.</p>
+        </div>
+
+        <div id="user-view" class="auth-card shadow-lg" style="display: none;">
+            <div class="auth-header">
+                <h2>학습 준비 완료</h2>
+                <p id="user-display-info">정보를 불러오는 중...</p>
+            </div>
+            <div class="button-group">
+                <button class="btn-primary main-btn" onclick="loadQuestions()">무료 문제 시작하기</button>
+                <button class="btn-outline main-btn" onclick="handleLogout()">로그아웃</button>
+            </div>
+        </div>
+    </section>
+
+    <section id="quiz-section" class="mt-5">
+        <div id="question-area"></div>
+    </section>
+</main>
 
     <script src="common.js"></script>
     <script>
