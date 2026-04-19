@@ -1,4 +1,3 @@
-// api/admin/users.js
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
@@ -12,8 +11,8 @@ export default async function handler(req, res) {
 
   try {
     const { data, error } = await supabase
-      .from('users') 
-      .select('id, email, user_status, expiry_date') 
+      .from('users')
+      .select('id, email, user_status, expiry_date')
       .order('email', { ascending: true });
 
     if (error) throw error;
