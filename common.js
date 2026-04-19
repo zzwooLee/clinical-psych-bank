@@ -276,6 +276,7 @@ async function loadUserList() {
                         <option value="admin" ${uStatus === 'admin' ? 'selected' : ''}>ADMIN</option>
                     </select>
                     <button onclick="setExpiryDate('${user.id}')">📅</button>
+                    <button onclick="deleteUser('${user.id}', '${user.email}')" title="회원 삭제" style="cursor:pointer; background:none; border:none; font-size:1.1rem; color:#e74c3c;">🗑️</button>
                 </td>
             `;
             tbody.appendChild(tr);
@@ -351,3 +352,33 @@ async function updateUserStatus(userId, newStatus) {
         }
     } catch (e) { alert("오류 발생"); }
 }
+
+window.deleteUser = async function(userId, email) {
+    if (!confirm(`[경고] ${email} 사용자를 정말 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) {
+        return;
+    }
+
+    const role = currentUser.status || currentUser.user_status;
+
+    try {
+        const response = await fetch('/api/admin/delete-user', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                targetUserId: userId, 
+                userStatus: role 
+            })
+        });
+
+        if (response.ok) {
+            alert("회원 정보가 성공적으로 삭제되었습니다.");
+            refreshAdminDashboard(); // 목록 새로고침
+        } else {
+            const result = await response.json();
+            alert("삭제 실패: " + result.message);
+        }
+    } catch (e) {
+        console.error(e);
+        alert("통신 오류가 발생했습니다.");
+    }
+};
