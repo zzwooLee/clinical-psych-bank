@@ -414,11 +414,14 @@ function toggleAdminPanel() {
 
 // 초기 로드 시 유저 정보 확인
 document.addEventListener('DOMContentLoaded', () => {
-    updateUserUI(); // 유저 정보 표시 로직 (기존 코드)
+    updateUserUI(); // 유저 정보 표시 로직
 
-    // [추가] 관리자일 경우 버튼 노출
-    if (currentUser && currentUser.status === 'admin') {
+    // currentUser 객체와 그 안의 status(혹은 user_status)가 'admin'인지 확인
+    if (currentUser && (currentUser.status === 'admin' || currentUser.user_status === 'admin')) {
         const adminBtn = document.getElementById('btn-admin-menu');
-        if (adminBtn) adminBtn.style.display = 'inline-block';
+        if (adminBtn) {
+            adminBtn.style.display = 'inline-block'; // 버튼 보이기
+            adminBtn.innerText = "📊 통계 대시보드"; // 텍스트 재설정
+        }
     }
 });
