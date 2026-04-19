@@ -19,15 +19,25 @@ export default async function handler(req, res) {
 
     if (authError) throw authError;
 
-    // 2. users 테이블에서 추가 정보(user_status, expiry_date) 조회
-    const { data: userData, error: userError } = await supabase
+    // 2. users 테이블에서 추가 정보 조회
+    const { data: userRows, error: userError } = await supabase
       .from('users')
       .select('id, email, user_status, expiry_date')
-      .eq('id', authData.user.id)
-      .single();
-
+      .eq('id', authData.user.id); // .single()을 제거합니다.
+    
     if (userError) throw userError;
-
+    
+    // 결과가 없는 경우(회원가입 후 users 테이블에 row가 생기지 않았을 때 등)
+    if (!userRows || userRows.length === 0) {
+        // 임시로 기본 권한 부여 또는 에러 처리
+        return res.status(200).json({
+            user: { id: authData.user.id, email: authData.user.email },
+            status: 'free',
+            message: "유저 상세 정보가 없어 기본 등급으로 로그인합니다."
+        });
+    }
+    
+    const userData = userRows[0]; // 첫 번째 결과 사용
     let currentStatus = userData.user_status;
     const today = new Date();
     
