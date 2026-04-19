@@ -210,5 +210,37 @@ function updateUserUI() {
     }
 }
 
+/* common.js 내 관리자 대시보드 로직 */
+
+async function loadAdminStats() {
+    if (currentUser.status !== 'admin') return;
+
+    try {
+        const response = await fetch('/api/admin/stats', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userStatus: currentUser.status })
+        });
+        
+        const stats = await response.json();
+        
+        // 데이터 반영
+        document.getElementById('stat-total-questions').innerText = stats.totalQuestions.toLocaleString();
+        document.getElementById('stat-today-users').innerText = stats.activeUsers.toLocaleString();
+        document.getElementById('stat-premium-rate').innerText = stats.premiumRate + "%";
+    } catch (e) {
+        console.error("통계 로드 실패", e);
+    }
+}
+
+// 관리자 패널 토글 시 데이터 로드
+function toggleAdminPanel() {
+    const panel = document.getElementById('admin-panel');
+    const isOpening = panel.style.display === 'none';
+    panel.style.display = isOpening ? 'block' : 'none';
+    
+    if (isOpening) loadAdminStats();
+}
+
 // 초기 로드 시 유저 정보 확인
 document.addEventListener('DOMContentLoaded', updateUserUI);
