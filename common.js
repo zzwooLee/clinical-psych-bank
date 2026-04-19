@@ -211,7 +211,6 @@ function updateUserUI() {
 }
 
 /* common.js 내 관리자 대시보드 로직 */
-
 async function loadAdminStats() {
     if (currentUser.status !== 'admin') return;
 
@@ -233,8 +232,6 @@ async function loadAdminStats() {
     }
 }
 // 유저 목록 불러오기
-/* common.js 내 loadUserList 함수 수정 */
-
 async function loadUserList() {
     try {
         const response = await fetch('/api/admin/users', {
@@ -277,9 +274,40 @@ async function loadUserList() {
     }
 }
 
+// [수정] 데이터 새로고침 함수: 통계와 유저목록을 순차적으로 확실히 로드
+async function refreshAdminDashboard() {
+    const btn = document.querySelector('.btn-refresh-stats');
+    if(btn) btn.innerText = "로딩 중...";
+    
+    try {
+        await loadAdminStats(); // 통계 업데이트
+        await loadUserList();  // 유저 목록 업데이트
+        console.log("대시보드 새로고침 완료");
+    } catch (e) {
+        console.error("새로고침 중 오류:", e);
+    } finally {
+        if(btn) btn.innerText = "데이터 새로고침";
+    }
+}
+
 // 유저 등급 업데이트
 async function updateUserStatus(userId, newStatus) {
-    if (!confirm(`이 유저의 등급을 ${newStatus.toUpperCase()}(으)로 변경하시겠습니까?`)) return;
+    let expiryDate = null;
+
+    // Premium 선택 시 날짜 입력받기
+    if (newStatus === 'premium') {
+        const input = prompt("만료일을 입력해주세요 (예: 2024-12-31). 입력하지 않으면 한 달 뒤로 자동 설정됩니다.");
+        if (input === null) return; // 취소 누르면 중단
+        
+        if (input.trim() === "") {
+            // 기본값: 오늘로부터 1개월 뒤
+            const date = new Date();
+            date.setMonth(date.getMonth() + 1);
+            expiryDate = date.toISOString().split('T')[0];
+        } else {
+            expiryDate = input;
+        }
+    }
 
     try {
         const response = await fetch('/api/admin/update-user', {
@@ -288,18 +316,23 @@ async function updateUserStatus(userId, newStatus) {
             body: JSON.stringify({ 
                 targetUserId: userId, 
                 newStatus: newStatus,
+                expiryDate: expiryDate, // 만료일 추가 전달
                 userStatus: currentUser.status 
             })
         });
 
         if (response.ok) {
-            alert("등급이 변경되었습니다.");
-            loadAdminStats(); // 대시보드 수치 갱신
+            alert("변경되었습니다.");
+            refreshAdminDashboard(); // 변경 후 즉시 새로고침
+        } else {
+            const err = await response.json();
+            alert("에러: " + err.message);
         }
     } catch (e) {
-        alert("변경 실패");
+        alert("통신 오류가 발생했습니다.");
     }
 }
+
 // 관리자 패널 토글 시 데이터 로드
 function toggleAdminPanel() {
     const adminPanel = document.getElementById('admin-panel');
