@@ -14,7 +14,6 @@
             <div class="user-info">
                 <span class="user-email" id="display-email"></span>
                 <span class="badge premium-badge" id="display-status"></span>
-                <button id="btn-admin-menu" class="btn-admin-outline" style="display:none;" onclick="toggleAdminPanel()">관리자 메뉴</button>
             </div>
             <button class="btn-logout" onclick="handleLogout()">로그아웃</button>
         </div>
@@ -54,6 +53,32 @@
         <div id="question-area">
             <div class="card empty-state">
                 <p>상단 필터를 선택하고 <strong>랜덤 출제</strong> 버튼을 눌러주세요.</p>
+            </div>
+        </div>
+
+        <div id="admin-panel" class="admin-panel-card" style="display:none; background-color: #fcfcfc; border: 1px solid #d1d5db;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h3 style="margin: 0; color: #1a202c;">📊 시스템 관리 대시보드</h3>
+                <button onclick="toggleAdminPanel()" style="background:none; border:none; cursor:pointer;">✕</button>
+            </div>
+            
+            <div class="admin-stats-grid">
+                <div class="stat-card">
+                    <span class="stat-label">전체 문제 수</span>
+                    <span id="stat-total-questions" class="stat-value">-</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">오늘 접속자</span>
+                    <span id="stat-today-users" class="stat-value">-</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">프리미엄 비율</span>
+                    <span id="stat-premium-rate" class="stat-value">-%</span>
+                </div>
+            </div>
+        
+            <div style="margin-top: 20px; text-align: right;">
+                <button class="btn-refresh-stats" onclick="loadAdminStats()">데이터 새로고침</button>
             </div>
         </div>
     </main>
