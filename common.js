@@ -1,6 +1,139 @@
 /* common.js */
 
 // ─────────────────────────────────────────────
+// 0. 자동 로그아웃 모듈
+//    · 비활동 30분 경과 시 자동 로그아웃
+//    · 만료 2분 전 경고 모달 → "계속하기" 누르면 세션 연장
+//    · 탭 전환 후 복귀 시에도 즉시 체크
+// ─────────────────────────────────────────────
+(function setupAutoLogout() {
+    const TIMEOUT_MS  = 30 * 60 * 1000;  // 비활동 허용 시간 : 30분
+    const WARN_MS     =  2 * 60 * 1000;  // 만료 몇 ms 전에 경고 : 2분
+    const CHECK_MS    =      60 * 1000;  // 주기적 체크 간격   : 1분
+    const STORAGE_KEY = 'quiz_last_active';
+
+    let warnInterval  = null;   // 경고 모달 카운트다운 타이머
+    let checkInterval = null;   // 주기 체크 타이머
+    let throttleTimer = null;   // 활동 감지 스로틀 타이머
+
+    /* ── 마지막 활동 시각 갱신 ── */
+    function resetActivity() {
+        sessionStorage.setItem(STORAGE_KEY, Date.now());
+        // 경고 모달이 열려 있으면 닫기
+        const warnModal = document.getElementById('auto-logout-modal');
+        if (warnModal && warnModal.style.display === 'flex') {
+            warnModal.style.display = 'none';
+            clearInterval(warnInterval);
+        }
+    }
+
+    /* ── 강제 로그아웃 ── */
+    function forceLogout() {
+        clearInterval(warnInterval);
+        clearInterval(checkInterval);
+        sessionStorage.removeItem('quiz_user');
+        sessionStorage.removeItem(STORAGE_KEY);
+        const warnModal = document.getElementById('auto-logout-modal');
+        if (warnModal) warnModal.style.display = 'none';
+        // index.html 자체에서는 리다이렉트 생략
+        const path = location.pathname;
+        if (!path.endsWith('index.html') && path !== '/' && path !== '') {
+            location.href = 'index.html';
+        } else {
+            // index 페이지면 UI만 초기화
+            const guestView = document.getElementById('guest-view');
+            const userView  = document.getElementById('user-view');
+            if (guestView) guestView.style.display = 'block';
+            if (userView)  userView.style.display  = 'none';
+        }
+    }
+
+    /* ── 경고 모달 표시 + 카운트다운 ── */
+    function showWarnModal(remainSec) {
+        const modal   = document.getElementById('auto-logout-modal');
+        const countEl = document.getElementById('auto-logout-count');
+        if (!modal) {
+            // 모달 DOM이 없는 페이지는 바로 로그아웃
+            forceLogout();
+            return;
+        }
+        if (countEl) countEl.innerText = remainSec;
+        modal.style.display = 'flex';
+
+        let remain = remainSec;
+        warnInterval = setInterval(() => {
+            remain -= 1;
+            if (countEl) countEl.innerText = remain;
+            if (remain <= 0) {
+                clearInterval(warnInterval);
+                forceLogout();
+            }
+        }, 1000);
+    }
+
+    /* ── 주기적 비활동 체크 시작 ── */
+    function startCheck() {
+        clearInterval(checkInterval);   // 중복 방지
+        checkInterval = setInterval(() => {
+            if (!sessionStorage.getItem('quiz_user')) {
+                clearInterval(checkInterval);
+                return;
+            }
+            const lastActive = parseInt(sessionStorage.getItem(STORAGE_KEY) || Date.now());
+            const idle       = Date.now() - lastActive;
+            const remain     = TIMEOUT_MS - idle;
+
+            if (remain <= 0) {
+                clearInterval(checkInterval);
+                forceLogout();
+            } else if (remain <= WARN_MS) {
+                const modal = document.getElementById('auto-logout-modal');
+                if (modal && modal.style.display !== 'flex') {
+                    clearInterval(checkInterval);   // 경고 중엔 체크 일시 중단
+                    showWarnModal(Math.floor(remain / 1000));
+                }
+            }
+        }, CHECK_MS);
+    }
+
+    /* ── 유저 활동 이벤트 감지 (30초 스로틀) ── */
+    ['mousemove', 'keydown', 'click', 'touchstart', 'scroll'].forEach(evt => {
+        document.addEventListener(evt, () => {
+            if (!sessionStorage.getItem('quiz_user')) return;
+            if (throttleTimer) return;
+            throttleTimer = setTimeout(() => {
+                resetActivity();
+                throttleTimer = null;
+            }, 30 * 1000);
+        }, { passive: true });
+    });
+
+    /* ── 탭 복귀 시 즉시 체크 ── */
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState !== 'visible') return;
+        if (!sessionStorage.getItem('quiz_user')) return;
+        const lastActive = parseInt(sessionStorage.getItem(STORAGE_KEY) || Date.now());
+        if (Date.now() - lastActive >= TIMEOUT_MS) {
+            forceLogout();
+        }
+    });
+
+    /* ── 페이지 로드 후 초기화 ── */
+    document.addEventListener('DOMContentLoaded', () => {
+        if (!sessionStorage.getItem('quiz_user')) return;
+        resetActivity();
+        startCheck();
+    });
+
+    /* ── 외부에서 호출: "계속하기" 버튼 ── */
+    window.extendSession = function () {
+        clearInterval(warnInterval);
+        resetActivity();
+        startCheck();
+    };
+})();
+
+// ─────────────────────────────────────────────
 // 1. 전역 상태 관리
 // ─────────────────────────────────────────────
 let allQuestions = [];
@@ -99,6 +232,9 @@ window.handleLogin = async function () {
         sessionStorage.setItem('quiz_user', JSON.stringify(userData));
         currentUser = userData;
 
+        // 로그인 성공 시 활동 시각 초기화 + 체크 시작
+        sessionStorage.setItem('quiz_last_active', Date.now());
+
         // index.html 전용: guest-view → user-view 전환
         const guestView = document.getElementById('guest-view');
         const userView  = document.getElementById('user-view');
@@ -157,6 +293,7 @@ window.handleLogout = function () {
     if (!modal) {
         if (confirm('정말 로그아웃 하시겠습니까?')) {
             sessionStorage.removeItem('quiz_user');
+            sessionStorage.removeItem('quiz_last_active');
             location.href = 'index.html';
         }
         return;
@@ -169,6 +306,7 @@ window.handleLogout = function () {
 
     document.getElementById('modal-confirm-btn').onclick = () => {
         sessionStorage.removeItem('quiz_user');
+        sessionStorage.removeItem('quiz_last_active');
         location.href = 'index.html';
     };
     modal.style.display = 'flex';
