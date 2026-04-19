@@ -1,3 +1,5 @@
+/* common.js */
+
 // ─────────────────────────────────────────────
 // 0. 자동 로그아웃 모듈
 //    · 비활동 30분 경과 시 자동 로그아웃
@@ -159,7 +161,8 @@ document.addEventListener('DOMContentLoaded', () => {
         guestView.style.display = 'none';
         userView.style.display  = 'block';
         const infoEl = document.getElementById('user-display-info');
-        if (infoEl) infoEl.innerText = `${currentUser.email} (${(currentUser.status || 'free').toUpperCase()})`;
+        const displayName = currentUser.name || currentUser.email;
+        if (infoEl) infoEl.innerText = `${displayName} (${(currentUser.status || 'free').toUpperCase()})`;
     }
 });
 
@@ -167,10 +170,10 @@ function updateUserUI() {
     const savedUser = sessionStorage.getItem('quiz_user');
     if (savedUser) {
         currentUser = JSON.parse(savedUser);
-        const emailEl  = document.getElementById('display-email');
+        const nameEl   = document.getElementById('display-name');
         const statusEl = document.getElementById('display-status');
 
-        if (emailEl)  emailEl.innerText  = currentUser.email;
+        if (nameEl)   nameEl.innerText   = currentUser.name || currentUser.email;
         // [#3] status 단일 필드 사용
         if (statusEl) statusEl.innerText = (currentUser.status || 'free').toUpperCase();
     }
@@ -225,7 +228,8 @@ window.handleLogin = async function () {
         const userData = {
             id    : data.user.id,
             email : data.user.email,
-            status: data.status   // 'free' | 'premium' | 'admin'
+            name  : data.user.name || '',   // 이름 저장
+            status: data.status             // 'free' | 'premium' | 'admin'
         };
         sessionStorage.setItem('quiz_user', JSON.stringify(userData));
         currentUser = userData;
@@ -240,7 +244,8 @@ window.handleLogin = async function () {
             guestView.style.display = 'none';
             userView.style.display  = 'block';
             const infoEl = document.getElementById('user-display-info');
-            if (infoEl) infoEl.innerText = `${data.user.email} (${data.status.toUpperCase()})`;
+            const loginDisplayName = data.user.name || data.user.email;
+            if (infoEl) infoEl.innerText = `${loginDisplayName} (${data.status.toUpperCase()})`;
 
             // admin이면 버튼 표시
             if (data.status === 'admin') {
