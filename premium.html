@@ -7,7 +7,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <style>
-        /* 추가 및 보정 스타일 */
+        /* 커스텀 모달 */
         .modal-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 9999;
@@ -15,20 +15,20 @@
         }
         .modal-content {
             background: white; padding: 30px; border-radius: 16px; width: 340px;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
             text-align: center; border: 1px solid #edf2f7;
         }
         .modal-content h3 { margin-top: 0; color: #1a202c; font-weight: 800; margin-bottom: 10px; }
-        .modal-content p { font-size: 0.95rem; color: #4a5568; margin-bottom: 20px; line-height: 1.5; }
+        .modal-content p  { font-size: 0.95rem; color: #4a5568; margin-bottom: 20px; line-height: 1.5; }
         #modal-date-input {
-            width: 100%; padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px; 
+            width: 100%; padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px;
             margin-bottom: 20px; font-size: 1rem; outline: none; transition: border 0.2s;
         }
-        #modal-date-input:focus { border-color: #3182ce; box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.2); }
+        #modal-date-input:focus { border-color: #3182ce; box-shadow: 0 0 0 3px rgba(66,153,225,0.2); }
         .modal-buttons { display: flex; gap: 12px; justify-content: center; }
-        .btn-modal-close { background: #f7fafc; color: #4a5568; border: 1px solid #e2e8f0; padding: 10px 20px; border-radius: 8px; cursor: pointer; flex: 1; font-weight: 500; }
+        .btn-modal-close   { background: #f7fafc; color: #4a5568; border: 1px solid #e2e8f0; padding: 10px 20px; border-radius: 8px; cursor: pointer; flex: 1; font-weight: 500; }
         .btn-modal-confirm { background: #3182ce; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; flex: 1; font-weight: 600; }
-        
+
         /* 테이블 보정 */
         .user-table th { background-color: #f8fafc; color: #64748b; font-weight: 600; font-size: 0.85rem; border-bottom: 2px solid #e2e8f0; }
         .user-table td { border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
@@ -41,7 +41,7 @@
             <div class="user-info">
                 <span class="user-email" id="display-email">로딩 중...</span>
                 <span class="badge" id="display-status">FREE</span>
-                <button id="btn-admin-menu" class="btn-admin-outline" style="display:none; margin-left: 10px;" onclick="toggleAdminPanel()">📊 통계 대시보드</button>
+                <button id="btn-admin-menu" class="btn-admin-outline" style="display:none; margin-left:10px;" onclick="toggleAdminPanel()">📊 통계 대시보드</button>
             </div>
             <button class="btn-logout" onclick="handleLogout()">로그아웃</button>
         </div>
@@ -57,11 +57,11 @@
                     <option value="1">1급</option>
                     <option value="2">2급</option>
                 </select>
-                
+
                 <select id="sel-category">
                     <option value="">과목 전체</option>
                 </select>
-                
+
                 <select id="sel-year">
                     <option value="">연도 전체</option>
                 </select>
@@ -73,7 +73,7 @@
                     <option value="100">100문제</option>
                 </select>
             </div>
-            
+
             <button class="btn-random" onclick="loadQuestions()">
                 <span>🎲</span> 랜덤 출제
             </button>
@@ -85,12 +85,13 @@
             </div>
         </div>
 
-        <div id="admin-panel" class="admin-panel-card" style="display:none; margin-top: 30px; border: 1px solid #e2e8f0;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h3 style="margin: 0; color: #1a202c; font-size: 1.25rem;">📊 시스템 관리 대시보드</h3>
-                <button onclick="toggleAdminPanel()" style="background:none; border:none; cursor:pointer; font-size: 1.5rem; color: #a0aec0;">✕</button>
+        <!-- 관리자 대시보드 패널 -->
+        <div id="admin-panel" class="admin-panel-card" style="display:none; margin-top:30px; border:1px solid #e2e8f0;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                <h3 style="margin:0; color:#1a202c; font-size:1.25rem;">📊 시스템 관리 대시보드</h3>
+                <button onclick="toggleAdminPanel()" style="background:none; border:none; cursor:pointer; font-size:1.5rem; color:#a0aec0;">✕</button>
             </div>
-            
+
             <div class="admin-stats-grid">
                 <div class="stat-card">
                     <span class="stat-label">전체 문제 수</span>
@@ -105,19 +106,19 @@
                     <span id="stat-premium-rate" class="stat-value">-%</span>
                 </div>
             </div>
-        
-            <div class="admin-user-management" style="margin-top: 30px; border-top: 1px solid #edf2f7; padding-top: 25px;">
-                <h4 style="color: #4a5568; margin-bottom: 15px; display: flex; align-items: center; gap: 8px;">
+
+            <div class="admin-user-management" style="margin-top:30px; border-top:1px solid #edf2f7; padding-top:25px;">
+                <h4 style="color:#4a5568; margin-bottom:15px; display:flex; align-items:center; gap:8px;">
                     👥 회원 권한 관리
                 </h4>
-                <div style="overflow-x: auto; background: white; border-radius: 8px; border: 1px solid #f1f5f9;">
-                    <table class="user-table" style="width: 100%; border-collapse: collapse;">
+                <div style="overflow-x:auto; background:white; border-radius:8px; border:1px solid #f1f5f9;">
+                    <table class="user-table" style="width:100%; border-collapse:collapse;">
                         <thead>
                             <tr>
-                                <th style="text-align: left; padding: 12px 15px;">이메일</th>
-                                <th style="text-align: center; padding: 12px;">현재 등급</th>
-                                <th style="text-align: center; padding: 12px;">만료일</th>
-                                <th style="text-align: center; padding: 12px;">관리</th>
+                                <th style="text-align:left; padding:12px 15px;">이메일</th>
+                                <th style="text-align:center; padding:12px;">현재 등급</th>
+                                <th style="text-align:center; padding:12px;">만료일</th>
+                                <th style="text-align:center; padding:12px;">관리</th>
                             </tr>
                         </thead>
                         <tbody id="user-list-body">
@@ -126,22 +127,21 @@
                     </table>
                 </div>
             </div>
-        
-            <div style="margin-top: 20px; text-align: right;">
-                <button class="btn-refresh-stats" onclick="refreshAdminDashboard()" style="padding: 8px 16px; font-size: 0.85rem;">🔄 데이터 새로고침</button>
+
+            <div style="margin-top:20px; text-align:right;">
+                <button class="btn-refresh-stats" onclick="refreshAdminDashboard()" style="padding:8px 16px; font-size:0.85rem;">🔄 데이터 새로고침</button>
             </div>
         </div>
     </main>
 
+    <!-- 커스텀 모달 (alert / confirm / date picker 통합) -->
     <div id="custom-modal" class="modal-overlay" style="display:none;">
         <div class="modal-content">
             <h3 id="modal-title">알림</h3>
             <p id="modal-desc">내용을 입력해주세요.</p>
-            
             <input type="date" id="modal-date-input" style="display:none;">
-            
             <div class="modal-buttons">
-                <button id="modal-cancel-btn" onclick="closeCustomModal()" class="btn-modal-close">취소</button>
+                <button id="modal-cancel-btn"  onclick="closeCustomModal()" class="btn-modal-close">취소</button>
                 <button id="modal-confirm-btn" class="btn-modal-confirm">확인</button>
             </div>
         </div>
@@ -149,22 +149,24 @@
 
     <script src="common.js" defer></script>
     <script>
+        // ─── 과목 데이터 ───
         const subjectData = {
             "1": ["고급임상심리학", "고급이상심리학", "고급심리검사", "고급심리치료", "고급연구방법론"],
             "2": ["심리학개론", "이상심리학", "심리검사", "임상심리학", "심리상담"]
         };
 
-        // 과목 업데이트
+        // 과목 셀렉트 업데이트
         function updateSubjects() {
-            const grade = document.getElementById('sel-grade').value;
+            const grade          = document.getElementById('sel-grade').value;
             const categorySelect = document.getElementById('sel-category');
-            if(!categorySelect) return;
-            
+            if (!categorySelect) return;
+
             categorySelect.innerHTML = '<option value="">과목 전체</option>';
             if (grade && subjectData[grade]) {
                 subjectData[grade].forEach(sub => {
-                    const opt = document.createElement('option');
-                    opt.value = sub; opt.text = sub;
+                    const opt  = document.createElement('option');
+                    opt.value  = sub;
+                    opt.text   = sub;
                     categorySelect.add(opt);
                 });
             }
@@ -176,21 +178,30 @@
             if (!yearSelect) return;
             try {
                 const response = await fetch('/api/years');
-                const years = await response.json();
+                const years    = await response.json();
                 yearSelect.innerHTML = '<option value="">연도 전체</option>';
                 if (years && years.length > 0) {
                     years.forEach(year => {
                         const opt = document.createElement('option');
-                        opt.value = year; opt.text = year + "년";
+                        opt.value = year;
+                        opt.text  = year + '년';
                         yearSelect.add(opt);
                     });
                 }
-            } catch (e) { console.error("연도 로드 실패", e); }
+            } catch (e) { console.error('연도 로드 실패', e); }
         }
 
         document.addEventListener('DOMContentLoaded', () => {
+            // [#8 핵심 수정] 세션 체크 — 비로그인 접근 차단
+            const user = JSON.parse(sessionStorage.getItem('quiz_user'));
+            if (!user || !user.email) {
+                location.href = 'index.html';
+                return; // 이후 코드 실행 중단
+            }
+
+            // 세션 정상 → 초기화
             initYears();
-            // 세션 체크 및 UI 초기화는 common.js의 DOMContentLoaded와 협력합니다.
+            updateSubjects();
         });
     </script>
 </body>
