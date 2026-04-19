@@ -322,6 +322,13 @@
             if (user.status === 'free') {
                 const upgradeBtn = document.getElementById('btn-upgrade');
                 if (upgradeBtn) upgradeBtn.style.display = 'inline-block';
+
+                // 문제 수 선택 목록을 20문제로 고정
+                const limitSelect = document.getElementById('sel-limit');
+                if (limitSelect) {
+                    limitSelect.innerHTML = '<option value="20">20문제</option>';
+                    limitSelect.disabled  = true;
+                }
             }
 
             initYears();
