@@ -77,7 +77,21 @@
         </section>
     </main>
 
-    <!-- ✅ 추가: handleLogout / showAlert이 사용하는 모달 DOM -->
+    <!-- 자동 로그아웃 경고 모달 -->
+    <div id="auto-logout-modal" class="modal-overlay" style="display:none;">
+        <div class="modal-content">
+            <h3 style="color:#e53e3e;">⏰ 자동 로그아웃 예정</h3>
+            <p>
+                장시간 활동이 없어<br>
+                <strong><span id="auto-logout-count">120</span>초</strong> 후 자동으로 로그아웃됩니다.
+            </p>
+            <div class="modal-buttons">
+                <button onclick="extendSession()" class="btn-modal-confirm">계속하기</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- handleLogout / showAlert이 사용하는 모달 DOM -->
     <div id="custom-modal" class="modal-overlay" style="display:none;">
         <div class="modal-content">
             <h3 id="modal-title">알림</h3>
