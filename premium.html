@@ -25,29 +25,117 @@
         }
         #modal-date-input:focus { border-color: #3182ce; box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.2); }
         .modal-buttons { display: flex; gap: 12px; justify-content: center; }
-        .btn-modal-close { background: #f7fafc; color: #4a5568; border: 1px solid #e2e8f0; padding: 10px 20px; border-radius: 8px; cursor: pointer; flex: 1; font-weight: 500; }
-        .btn-modal-confirm { background: #3182ce; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; flex: 1; font-weight: 600; }
-        
+        .btn-modal-close    { background: #f7fafc; color: #4a5568; border: 1px solid #e2e8f0; padding: 10px 20px; border-radius: 8px; cursor: pointer; flex: 1; font-weight: 500; }
+        .btn-modal-confirm  { background: #3182ce; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; flex: 1; font-weight: 600; }
+
         .user-table th { background-color: #f8fafc; color: #64748b; font-weight: 600; font-size: 0.85rem; border-bottom: 2px solid #e2e8f0; }
         .user-table td { border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+
+        /* ── 프리미엄 신청 버튼 ── */
+        .btn-upgrade {
+            background: linear-gradient(135deg, #f6c90e, #f0a500);
+            color: #1a202c;
+            border: none;
+            padding: 7px 16px;
+            border-radius: 20px;
+            font-weight: 700;
+            font-size: 0.85rem;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(246,201,14,0.4);
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .btn-upgrade:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(246,201,14,0.5);
+        }
+
+        /* ── 업그레이드 모달 ── */
+        .upgrade-icon  { font-size: 2.5rem; margin-bottom: 10px; }
+        .upgrade-title { font-size: 1.4rem; font-weight: 800; color: #1a202c; margin-bottom: 6px; }
+        .upgrade-sub   { font-size: 0.9rem; color: #718096; margin-bottom: 24px; }
+        .upgrade-benefits {
+            background: #f8faff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 18px 20px;
+            margin-bottom: 24px;
+            text-align: left;
+        }
+        .upgrade-benefits li {
+            list-style: none;
+            font-size: 0.9rem;
+            color: #2d3748;
+            padding: 5px 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* 이메일 신청 버튼 */
+        .btn-email-apply {
+            width: 100%;
+            padding: 14px;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            border: none;
+            background: var(--primary-color, #364d79);
+            color: #fff;
+            transition: all 0.2s;
+            margin-bottom: 10px;
+        }
+        .btn-email-apply:hover {
+            background: #2a3d61;
+            transform: translateY(-1px);
+        }
+
+        .upgrade-notice {
+            font-size: 0.78rem;
+            color: #a0aec0;
+            margin-top: 14px;
+            line-height: 1.6;
+        }
+        .btn-close-text {
+            margin-top: 14px;
+            background: none;
+            border: none;
+            color: #a0aec0;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+        .btn-close-text:hover { color: #718096; }
     </style>
 </head>
 <body class="premium-body">
 
     <main class="container">
+
+        <!-- ── 상단 상태 바 ── -->
         <div class="user-status-bar">
             <div class="user-info">
                 <span class="user-email" id="display-email">로딩 중...</span>
                 <span class="badge" id="display-status">FREE</span>
-                <button id="btn-admin-menu" class="btn-admin-outline" style="display:none; margin-left: 10px;" onclick="toggleAdminPanel()">📊 통계 대시보드</button>
+                <button id="btn-admin-menu" class="btn-admin-outline"
+                        style="display:none; margin-left:10px;"
+                        onclick="toggleAdminPanel()">📊 통계 대시보드</button>
             </div>
-            <button class="btn-logout" onclick="handleLogout()">로그아웃</button>
+            <div style="display:flex; align-items:center; gap:10px;">
+                <!-- free 유저에게만 표시 -->
+                <button id="btn-upgrade" class="btn-upgrade"
+                        style="display:none;"
+                        onclick="showUpgradeModal()">⭐ 프리미엄 신청</button>
+                <button class="btn-logout" onclick="handleLogout()">로그아웃</button>
+            </div>
         </div>
 
+        <!-- ── 타이틀 ── -->
         <header class="premium-header">
             <h1 class="premium-title">임상심리사 퀴즈</h1>
         </header>
 
+        <!-- ── 필터 바 ── -->
         <div class="filter-bar">
             <div class="filter-group">
                 <select id="sel-grade" onchange="updateSubjects()">
@@ -55,15 +143,12 @@
                     <option value="1">1급</option>
                     <option value="2">2급</option>
                 </select>
-                
                 <select id="sel-category">
                     <option value="">과목 전체</option>
                 </select>
-                
                 <select id="sel-year">
                     <option value="">연도 전체</option>
                 </select>
-
                 <select id="sel-limit">
                     <option value="20">20문제</option>
                     <option value="30">30문제</option>
@@ -71,24 +156,26 @@
                     <option value="100">100문제</option>
                 </select>
             </div>
-            
             <button class="btn-random" onclick="loadQuestions()">
                 <span>🎲</span> 랜덤 출제
             </button>
         </div>
 
+        <!-- ── 문제 영역 ── -->
         <div id="question-area">
             <div class="card empty-state">
                 <p>상단 필터를 선택하고 <strong>랜덤 출제</strong> 버튼을 눌러주세요.</p>
             </div>
         </div>
 
-        <div id="admin-panel" class="admin-panel-card" style="display:none; margin-top: 30px; border: 1px solid #e2e8f0;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h3 style="margin: 0; color: #1a202c; font-size: 1.25rem;">📊 시스템 관리 대시보드</h3>
-                <button onclick="toggleAdminPanel()" style="background:none; border:none; cursor:pointer; font-size: 1.5rem; color: #a0aec0;">✕</button>
+        <!-- ── 관리자 패널 ── -->
+        <div id="admin-panel" class="admin-panel-card"
+             style="display:none; margin-top:30px; border:1px solid #e2e8f0;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                <h3 style="margin:0; color:#1a202c; font-size:1.25rem;">📊 시스템 관리 대시보드</h3>
+                <button onclick="toggleAdminPanel()"
+                        style="background:none; border:none; cursor:pointer; font-size:1.5rem; color:#a0aec0;">✕</button>
             </div>
-            
             <div class="admin-stats-grid">
                 <div class="stat-card">
                     <span class="stat-label">전체 문제 수</span>
@@ -103,58 +190,97 @@
                     <span id="stat-premium-rate" class="stat-value">-%</span>
                 </div>
             </div>
-        
-            <div class="admin-user-management" style="margin-top: 30px; border-top: 1px solid #edf2f7; padding-top: 25px;">
-                <h4 style="color: #4a5568; margin-bottom: 15px; display: flex; align-items: center; gap: 8px;">
+            <div class="admin-user-management"
+                 style="margin-top:30px; border-top:1px solid #edf2f7; padding-top:25px;">
+                <h4 style="color:#4a5568; margin-bottom:15px; display:flex; align-items:center; gap:8px;">
                     👥 회원 권한 관리
                 </h4>
-                <div style="overflow-x: auto; background: white; border-radius: 8px; border: 1px solid #f1f5f9;">
-                    <table class="user-table" style="width: 100%; border-collapse: collapse;">
+                <div style="overflow-x:auto; background:white; border-radius:8px; border:1px solid #f1f5f9;">
+                    <table class="user-table" style="width:100%; border-collapse:collapse;">
                         <thead>
                             <tr>
-                                <th style="text-align: left; padding: 12px 15px;">이메일</th>
-                                <th style="text-align: center; padding: 12px;">현재 등급</th>
-                                <th style="text-align: center; padding: 12px;">만료일</th>
-                                <th style="text-align: center; padding: 12px;">관리</th>
+                                <th style="text-align:left; padding:12px 15px;">이메일</th>
+                                <th style="text-align:center; padding:12px;">현재 등급</th>
+                                <th style="text-align:center; padding:12px;">만료일</th>
+                                <th style="text-align:center; padding:12px;">관리</th>
                             </tr>
                         </thead>
                         <tbody id="user-list-body">
-                            <tr><td colspan="4" style="text-align:center; padding:30px; color:#a0aec0;">데이터를 불러오는 중...</td></tr>
+                            <tr>
+                                <td colspan="4"
+                                    style="text-align:center; padding:30px; color:#a0aec0;">
+                                    데이터를 불러오는 중...
+                                </td>
+                            </tr>
                         </tbody>
                     </table>
                 </div>
             </div>
-        
-            <div style="margin-top: 20px; text-align: right;">
-                <button class="btn-refresh-stats" onclick="refreshAdminDashboard()" style="padding: 8px 16px; font-size: 0.85rem;">🔄 데이터 새로고침</button>
+            <div style="margin-top:20px; text-align:right;">
+                <button class="btn-refresh-stats"
+                        onclick="refreshAdminDashboard()"
+                        style="padding:8px 16px; font-size:0.85rem;">🔄 데이터 새로고침</button>
             </div>
         </div>
+
     </main>
 
+    <!-- ── 공통 확인 모달 ── -->
     <div id="custom-modal" class="modal-overlay" style="display:none;">
         <div class="modal-content">
             <h3 id="modal-title">알림</h3>
-            <p id="modal-desc">내용을 입력해주세요.</p>
+            <p  id="modal-desc">내용을 입력해주세요.</p>
             <input type="date" id="modal-date-input" style="display:none;">
             <div class="modal-buttons">
-                <button id="modal-cancel-btn" onclick="closeCustomModal()" class="btn-modal-close">취소</button>
+                <button id="modal-cancel-btn"  onclick="closeCustomModal()" class="btn-modal-close">취소</button>
                 <button id="modal-confirm-btn" class="btn-modal-confirm">확인</button>
             </div>
         </div>
     </div>
 
+    <!-- ── 프리미엄 업그레이드 안내 모달 ── -->
+    <div id="upgrade-modal" class="modal-overlay" style="display:none;"
+         onclick="closeUpgradeModal(event)">
+        <div class="modal-content" style="width:400px; padding:35px 30px;">
+
+            <div class="upgrade-icon">⭐</div>
+            <div class="upgrade-title">프리미엄 멤버십</div>
+            <p class="upgrade-sub">더 많은 문제와 심층 해설로<br>합격을 앞당기세요.</p>
+
+            <ul class="upgrade-benefits">
+                <li>✅ 1급·2급 전체 기출문제 무제한 열람</li>
+                <li>✅ AI 생성 예상 문제 제공</li>
+                <li>✅ 연도·과목별 상세 필터링</li>
+                <li>✅ 문제당 전문 해설 제공</li>
+                <li>🚫 <span style="color:#a0aec0;">무료: 최대 20문제 / 일반 문제만</span></li>
+            </ul>
+
+            <!-- 이메일 신청 버튼 (클릭 시 메일 앱 오픈, 유저 이메일 자동 삽입) -->
+            <button class="btn-email-apply" onclick="sendUpgradeEmail()">
+                📧 이메일로 프리미엄 신청하기
+            </button>
+
+            <p class="upgrade-notice">
+                신청 이메일을 보내시면 관리자 확인 후 즉시 활성화됩니다.<br>
+                문의: <strong>admin@example.com</strong>
+            </p>
+
+            <button class="btn-close-text" onclick="closeUpgradeModal()">✕ 닫기</button>
+        </div>
+    </div>
+
     <script src="common.js" defer></script>
     <script>
+        /* ── 과목 데이터 ── */
         const subjectData = {
             "1": ["고급임상심리학", "고급이상심리학", "고급심리검사", "고급심리치료", "고급연구방법론"],
             "2": ["심리학개론", "이상심리학", "심리검사", "임상심리학", "심리상담"]
         };
 
         function updateSubjects() {
-            const grade = document.getElementById('sel-grade').value;
+            const grade          = document.getElementById('sel-grade').value;
             const categorySelect = document.getElementById('sel-category');
             if (!categorySelect) return;
-
             categorySelect.innerHTML = '<option value="">과목 전체</option>';
             if (grade && subjectData[grade]) {
                 subjectData[grade].forEach(sub => {
@@ -165,35 +291,71 @@
             }
         }
 
+        /* ── 연도 초기화 ── */
         async function initYears() {
             const yearSelect = document.getElementById('sel-year');
             if (!yearSelect) return;
             try {
                 const response = await fetch('/api/years');
-                const years = await response.json();
+                const years    = await response.json();
                 yearSelect.innerHTML = '<option value="">연도 전체</option>';
                 if (years && years.length > 0) {
                     years.forEach(year => {
                         const opt = document.createElement('option');
-                        opt.value = year; opt.text = year + "년";
+                        opt.value = year; opt.text = year + '년';
                         yearSelect.add(opt);
                     });
                 }
-            } catch (e) { console.error("연도 로드 실패", e); }
+            } catch (e) { console.error('연도 로드 실패', e); }
         }
 
+        /* ── 초기화 ── */
         document.addEventListener('DOMContentLoaded', () => {
-            // [#8 추가] 세션 체크 — URL 직접 접근 차단
+            // 세션 체크 — 비로그인 차단
             const user = JSON.parse(sessionStorage.getItem('quiz_user'));
             if (!user || !user.email) {
                 location.href = 'index.html';
-                return; // 이후 코드 실행 중단
+                return;
             }
 
-            // 정상 세션 → 초기화
+            // free 유저에게만 업그레이드 버튼 노출
+            if (user.status === 'free') {
+                const upgradeBtn = document.getElementById('btn-upgrade');
+                if (upgradeBtn) upgradeBtn.style.display = 'inline-block';
+            }
+
             initYears();
             updateSubjects();
         });
+
+        /* ── 업그레이드 모달 제어 ── */
+        window.showUpgradeModal = function () {
+            document.getElementById('upgrade-modal').style.display = 'flex';
+        };
+
+        window.closeUpgradeModal = function (e) {
+            // 배경(overlay) 클릭 또는 닫기 버튼 클릭 시 닫힘
+            if (!e || e.target === document.getElementById('upgrade-modal')) {
+                document.getElementById('upgrade-modal').style.display = 'none';
+            }
+        };
+
+        /* ── 이메일 신청 함수 ── */
+        window.sendUpgradeEmail = function () {
+            // ★ 아래 이메일 주소를 실제 관리자 이메일로 교체하세요
+            const ADMIN_EMAIL = 'admin@example.com';
+
+            const userEmail = document.getElementById('display-email')?.innerText?.trim() || '';
+            const subject   = encodeURIComponent('[프리미엄 신청] 임상심리사 퀴즈 뱅크');
+            const body      = encodeURIComponent(
+                '안녕하세요, 프리미엄 멤버십을 신청합니다.\n\n' +
+                '· 신청 계정: ' + userEmail + '\n' +
+                '· 신청 일자: ' + new Date().toLocaleDateString('ko-KR') + '\n\n' +
+                '확인 후 빠른 처리 부탁드립니다.\n감사합니다.'
+            );
+
+            window.location.href = `mailto:${ADMIN_EMAIL}?subject=${subject}&body=${body}`;
+        };
     </script>
 </body>
 </html>
