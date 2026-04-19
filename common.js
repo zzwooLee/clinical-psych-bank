@@ -236,22 +236,23 @@ async function loadAdminStats() {
 // 관리자 패널 토글 시 데이터 로드
 function toggleAdminPanel() {
     const adminPanel = document.getElementById('admin-panel');
-    const filterBar = document.querySelector('.filter-bar'); // 필터 영역
-    const questionArea = document.getElementById('question-area'); // 문제 영역
+    const filterBar = document.querySelector('.filter-bar');
+    const questionArea = document.getElementById('question-area');
+    const adminBtn = document.getElementById('btn-admin-menu'); // 관리자 버튼
     
     const isOpening = adminPanel.style.display === 'none';
 
     if (isOpening) {
-        // 1. 대시보드를 열 때
         adminPanel.style.display = 'block';
-        if (filterBar) filterBar.style.display = 'none';   // 필터 숨김
-        if (questionArea) questionArea.style.display = 'none'; // 퀴즈 숨김
-        loadAdminStats(); // 통계 데이터 로드
+        if (filterBar) filterBar.style.display = 'none';
+        if (questionArea) questionArea.style.display = 'none';
+        if (adminBtn) adminBtn.innerText = "✕ 대시보드 닫기";
+        loadAdminStats();
     } else {
-        // 2. 대시보드를 닫을 때
         adminPanel.style.display = 'none';
-        if (filterBar) filterBar.style.display = 'flex';    // 필터 다시 표시
-        if (questionArea) questionArea.style.display = 'block'; // 퀴즈 다시 표시
+        if (filterBar) filterBar.style.display = 'flex';
+        if (questionArea) questionArea.style.display = 'block';
+        if (adminBtn) adminBtn.innerText = "📊 통계 대시보드";
     }
 }
 
