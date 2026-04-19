@@ -233,6 +233,8 @@ async function loadAdminStats() {
     }
 }
 // 유저 목록 불러오기
+/* common.js 내 loadUserList 함수 수정 */
+
 async function loadUserList() {
     try {
         const response = await fetch('/api/admin/users', {
@@ -243,18 +245,22 @@ async function loadUserList() {
         const users = await response.json();
         
         const tbody = document.getElementById('user-list-body');
+        if (!tbody) return;
         tbody.innerHTML = '';
 
         users.forEach(user => {
             const tr = document.createElement('tr');
+            // user.status 대신 user.user_status를 사용합니다.
+            const currentStatus = user.user_status; 
+            
             tr.innerHTML = `
                 <td>${user.email}</td>
-                <td><span class="badge-${user.status}">${user.status.toUpperCase()}</span></td>
+                <td><span class="badge-${currentStatus}">${currentStatus.toUpperCase()}</span></td>
                 <td>
                     <select onchange="updateUserStatus('${user.id}', this.value)">
-                        <option value="free" ${user.status === 'free' ? 'selected' : ''}>FREE</option>
-                        <option value="premium" ${user.status === 'premium' ? 'selected' : ''}>PREMIUM</option>
-                        <option value="admin" ${user.status === 'admin' ? 'selected' : ''}>ADMIN</option>
+                        <option value="free" ${currentStatus === 'free' ? 'selected' : ''}>FREE</option>
+                        <option value="premium" ${currentStatus === 'premium' ? 'selected' : ''}>PREMIUM</option>
+                        <option value="admin" ${currentStatus === 'admin' ? 'selected' : ''}>ADMIN</option>
                     </select>
                 </td>
             `;
@@ -262,6 +268,7 @@ async function loadUserList() {
         });
     } catch (e) {
         console.error("유저 목록 로드 실패", e);
+        document.getElementById('user-list-body').innerHTML = '<tr><td colspan="3">데이터를 불러오지 못했습니다.</td></tr>';
     }
 }
 
