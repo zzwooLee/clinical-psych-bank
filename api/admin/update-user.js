@@ -1,22 +1,23 @@
-// api/admin/update-user.js
+// api/admin/update-user.js (Vercel Serverless Function)
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
 export default async function handler(req, res) {
+  if (req.method !== 'POST') return res.status(405).end();
+
   const { targetUserId, newStatus, expiryDate, userStatus } = req.body;
 
+  // 관리자 권한 체크
   if (userStatus !== 'admin') {
     return res.status(403).json({ message: "권한이 없습니다." });
   }
 
   try {
-    const updateData = { user_status: newStatus };
-    
-    // expiryDate가 전달되었다면 데이터에 포함 (null이면 유지 또는 초기화)
-    if (expiryDate !== undefined) {
-      updateData.expiry_date = expiryDate;
-    }
+    // 업데이트할 객체 생성
+    const updateData = {};
+    if (newStatus) updateData.user_status = newStatus; // 등급 업데이트
+    if (expiryDate) updateData.expiry_date = expiryDate; // 만료일 업데이트
 
     const { error } = await supabase
       .from('users')
@@ -24,8 +25,10 @@ export default async function handler(req, res) {
       .eq('id', targetUserId);
 
     if (error) throw error;
-    res.status(200).json({ message: "Success" });
+
+    return res.status(200).json({ message: "업데이트 완료" });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error("DB Error:", error.message);
+    return res.status(500).json({ message: error.message });
   }
 }
