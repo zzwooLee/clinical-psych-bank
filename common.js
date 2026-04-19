@@ -232,8 +232,6 @@ async function loadAdminStats() {
     }
 }
 // 유저 목록 불러오기
-/* common.js 내 loadUserList 함수 수정 */
-
 async function loadUserList() {
     try {
         const response = await fetch('/api/admin/users', {
@@ -247,36 +245,42 @@ async function loadUserList() {
         if (!tbody) return;
         tbody.innerHTML = '';
 
-        // 테이블 헤더를 동적으로 수정하거나, HTML에 '만료일' th를 미리 추가해두어야 합니다.
         users.forEach(user => {
             const tr = document.createElement('tr');
-            const currentStatus = user.user_status; 
-            // 만료일 데이터가 없으면 '제한 없음' 또는 '-' 표시
-            const expiry = user.expiry_date ? user.expiry_date : '-';
+            const currentStatus = user.user_status; // DB 컬럼명 확인
+            
+            // 만료일 가공: T00:00:00 이후 문자열 제거하여 날짜만 표시
+            let expiryDisplay = "-";
+            if (user.expiry_date) {
+                expiryDisplay = user.expiry_date.split('T')[0];
+            }
             
             tr.innerHTML = `
-                <td>${user.email}</td>
-                <td style="text-align:center;">
-                    <span class="badge-${currentStatus}">${currentStatus.toUpperCase()}</span>
+                <td style="text-align: left; padding-left: 15px;">${user.email}</td>
+                <td style="text-align: center;">
+                    <span class="badge-${currentStatus}" style="display: inline-block; min-width: 70px; text-align: center;">
+                        ${currentStatus.toUpperCase()}
+                    </span>
                 </td>
-                <td style="text-align:center; color: #4a5568; font-size: 0.85rem;">
-                    ${expiry}
+                <td style="text-align: center; color: #4a5568; font-family: monospace;">
+                    ${expiryDisplay}
                 </td>
-                <td>
-                    <div style="display: flex; align-items: center; gap: 5px;">
-                        <select onchange="updateUserStatus('${user.id}', this.value)" style="padding: 2px; font-size: 0.8rem;">
+                <td style="text-align: center;">
+                    <div style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+                        <select onchange="updateUserStatus('${user.id}', this.value)" style="padding: 4px; font-size: 0.85rem; border-radius: 4px; border: 1px solid #cbd5e0;">
                             <option value="free" ${currentStatus === 'free' ? 'selected' : ''}>FREE</option>
                             <option value="premium" ${currentStatus === 'premium' ? 'selected' : ''}>PREMIUM</option>
                             <option value="admin" ${currentStatus === 'admin' ? 'selected' : ''}>ADMIN</option>
                         </select>
-                        <button onclick="setExpiryDate('${user.id}')" title="만료일 수정" style="cursor:pointer; background:none; border:none; font-size:1.1rem;">📅</button>
+                        <button onclick="setExpiryDate('${user.id}')" title="만료일 직접 수정" style="cursor:pointer; background:none; border:none; font-size:1.1rem; padding: 0;">📅</button>
                     </div>
                 </td>
             `;
             tbody.appendChild(tr);
         });
     } catch (e) {
-        console.error("유저 목록 로드 실패", e);
+        console.error("유저 목록 로드 실패:", e);
+        document.getElementById('user-list-body').innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px;">데이터를 불러오지 못했습니다.</td></tr>';
     }
 }
 
