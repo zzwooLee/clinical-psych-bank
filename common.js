@@ -333,6 +333,43 @@ async function updateUserStatus(userId, newStatus) {
     }
 }
 
+/**
+ * 만료일 수동 설정 함수
+ */
+async function setExpiryDate(userId) {
+    const newDate = prompt("새로운 만료일을 입력해주세요 (YYYY-MM-DD)\n예: 2024-12-31");
+    
+    if (newDate === null) return; // 취소 시 중단
+
+    // 날짜 형식 유효성 검사 (간단하게)
+    if (newDate !== "" && !/^\d{4}-\d{2}-\d{2}$/.test(newDate)) {
+        alert("날짜 형식이 올바르지 않습니다. (YYYY-MM-DD)");
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/admin/update-user', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                targetUserId: userId, 
+                expiryDate: newDate, // 만료일만 전달
+                userStatus: currentUser.status 
+            })
+        });
+
+        if (response.ok) {
+            alert("만료일이 업데이트되었습니다.");
+            refreshAdminDashboard(); // 화면 갱신
+        } else {
+            alert("업데이트 실패");
+        }
+    } catch (e) {
+        console.error(e);
+        alert("통신 오류");
+    }
+}
+
 // 관리자 패널 토글 시 데이터 로드
 function toggleAdminPanel() {
     const adminPanel = document.getElementById('admin-panel');
