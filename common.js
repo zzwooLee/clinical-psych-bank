@@ -343,15 +343,21 @@ async function updateUserStatus(userId, newStatus) {
                 targetUserId: userId, 
                 newStatus: newStatus,
                 expiryDate: null,
-                userStatus: role 
+                userStatus: adminRole 
             })
         });
         if (response.ok) {
             alert("등급 변경 완료");
             refreshAdminDashboard();
+        } else {
+                    const errorData = await response.json();
+                    alert("변경 실패: " + errorData.message);
+                }
+            } catch (e) {
+                console.error("통신 에러:", e);
+                alert("서버와 통신할 수 없습니다.");
+            }
         }
-    } catch (e) { alert("오류 발생"); }
-}
 
 window.deleteUser = async function(userId, email) {
     if (!confirm(`[경고] ${email} 사용자를 정말 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) {
