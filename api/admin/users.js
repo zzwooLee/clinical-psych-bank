@@ -14,7 +14,7 @@ export default async function handler(req, res) {
     // 컬럼명을 status -> user_status로 변경
     const { data, error } = await supabase
       .from('users') 
-      .select('id, email, user_status') 
+      .select('id, email, user_status, expiry_date') 
       .order('email', { ascending: true });
 
     if (error) throw error;
