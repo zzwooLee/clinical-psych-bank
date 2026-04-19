@@ -232,6 +232,8 @@ async function loadAdminStats() {
     }
 }
 // 유저 목록 불러오기
+/* common.js 내 loadUserList 함수 수정 */
+
 async function loadUserList() {
     try {
         const response = await fetch('/api/admin/users', {
@@ -245,31 +247,36 @@ async function loadUserList() {
         if (!tbody) return;
         tbody.innerHTML = '';
 
+        // 테이블 헤더를 동적으로 수정하거나, HTML에 '만료일' th를 미리 추가해두어야 합니다.
         users.forEach(user => {
             const tr = document.createElement('tr');
-            const currentStatus = user.user_status; // 컬럼명 주의
-            const expiry = user.expiry_date || '제한 없음';
+            const currentStatus = user.user_status; 
+            // 만료일 데이터가 없으면 '제한 없음' 또는 '-' 표시
+            const expiry = user.expiry_date ? user.expiry_date : '-';
             
             tr.innerHTML = `
                 <td>${user.email}</td>
-                <td>
-                    <span class="badge-${currentStatus}">${currentStatus.toUpperCase()}</span><br>
-                    <small style="color:#718096">만료: ${expiry}</small>
+                <td style="text-align:center;">
+                    <span class="badge-${currentStatus}">${currentStatus.toUpperCase()}</span>
+                </td>
+                <td style="text-align:center; color: #4a5568; font-size: 0.85rem;">
+                    ${expiry}
                 </td>
                 <td>
-                    <select onchange="updateUserStatus('${user.id}', this.value)" style="padding: 2px; font-size: 0.8rem;">
-                        <option value="free" ${currentStatus === 'free' ? 'selected' : ''}>FREE</option>
-                        <option value="premium" ${currentStatus === 'premium' ? 'selected' : ''}>PREMIUM</option>
-                        <option value="admin" ${currentStatus === 'admin' ? 'selected' : ''}>ADMIN</option>
-                    </select>
-                    <button onclick="setExpiryDate('${user.id}')" style="cursor:pointer; background:none; border:none; margin-left:5px;">📅</button>
+                    <div style="display: flex; align-items: center; gap: 5px;">
+                        <select onchange="updateUserStatus('${user.id}', this.value)" style="padding: 2px; font-size: 0.8rem;">
+                            <option value="free" ${currentStatus === 'free' ? 'selected' : ''}>FREE</option>
+                            <option value="premium" ${currentStatus === 'premium' ? 'selected' : ''}>PREMIUM</option>
+                            <option value="admin" ${currentStatus === 'admin' ? 'selected' : ''}>ADMIN</option>
+                        </select>
+                        <button onclick="setExpiryDate('${user.id}')" title="만료일 수정" style="cursor:pointer; background:none; border:none; font-size:1.1rem;">📅</button>
+                    </div>
                 </td>
             `;
             tbody.appendChild(tr);
         });
     } catch (e) {
         console.error("유저 목록 로드 실패", e);
-        document.getElementById('user-list-body').innerHTML = '<tr><td colspan="3">데이터를 불러오지 못했습니다.</td></tr>';
     }
 }
 
