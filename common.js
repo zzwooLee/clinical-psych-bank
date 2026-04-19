@@ -243,4 +243,12 @@ function toggleAdminPanel() {
 }
 
 // 초기 로드 시 유저 정보 확인
-document.addEventListener('DOMContentLoaded', updateUserUI);
+document.addEventListener('DOMContentLoaded', () => {
+    updateUserUI(); // 유저 정보 표시 로직 (기존 코드)
+
+    // [추가] 관리자일 경우 버튼 노출
+    if (currentUser && currentUser.status === 'admin') {
+        const adminBtn = document.getElementById('btn-admin-menu');
+        if (adminBtn) adminBtn.style.display = 'inline-block';
+    }
+});
