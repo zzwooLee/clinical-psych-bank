@@ -326,38 +326,48 @@ async function handleDateSelected() {
     } catch (e) { alert("통신 오류"); }
 }
 
+/* common.js 수정본 */
+
 async function updateUserStatus(userId, newStatus) {
+    let expiryDate = null;
+
+    // 1. 프리미엄일 경우 날짜를 먼저 물어봄
     if (newStatus === 'premium') {
-        alert("Premium 등급은 만료일 설정이 필요합니다. 캘린더에서 날짜를 선택해주세요.");
-        setExpiryDate(userId);
-        return; 
+        const selectedDate = prompt("Premium 만료일을 입력해주세요 (YYYY-MM-DD)", "2025-12-31");
+        if (!selectedDate) return; // 취소 시 중단
+        expiryDate = selectedDate;
     }
+
     if (!confirm(`${newStatus.toUpperCase()} 등급으로 변경하시겠습니까?`)) return;
 
-    const role = currentUser.status || currentUser.user_status;
+    // 현재 관리자 권한 정보
+    const adminRole = currentUser.status || currentUser.user_status;
+
     try {
         const response = await fetch('/api/admin/update-user', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
                 targetUserId: userId, 
-                newStatus: newStatus,
-                expiryDate: null,
+                newStatus: newStatus,  // 'premium' 전달
+                expiryDate: expiryDate, // 설정한 날짜 전달
                 userStatus: adminRole 
             })
         });
+
+        const result = await response.json();
+
         if (response.ok) {
-            alert("등급 변경 완료");
-            refreshAdminDashboard();
+            alert("등급과 만료일이 성공적으로 변경되었습니다.");
+            refreshAdminDashboard(); // 목록 새로고침
         } else {
-                    const errorData = await response.json();
-                    alert("변경 실패: " + errorData.message);
-                }
-            } catch (e) {
-                console.error("통신 에러:", e);
-                alert("서버와 통신할 수 없습니다.");
-            }
+            alert("변경 실패: " + result.message);
         }
+    } catch (e) {
+        console.error(e);
+        alert("통신 에러가 발생했습니다.");
+    }
+}
 
 window.deleteUser = async function(userId, email) {
     if (!confirm(`[경고] ${email} 사용자를 정말 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) {
