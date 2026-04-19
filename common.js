@@ -232,13 +232,68 @@ async function loadAdminStats() {
         console.error("통계 로드 실패", e);
     }
 }
+// 유저 목록 불러오기
+async function loadUserList() {
+    try {
+        const response = await fetch('/api/admin/users', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userStatus: currentUser.status })
+        });
+        const users = await response.json();
+        
+        const tbody = document.getElementById('user-list-body');
+        tbody.innerHTML = '';
 
+        users.forEach(user => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${user.email}</td>
+                <td><span class="badge-${user.status}">${user.status.toUpperCase()}</span></td>
+                <td>
+                    <select onchange="updateUserStatus('${user.id}', this.value)">
+                        <option value="free" ${user.status === 'free' ? 'selected' : ''}>FREE</option>
+                        <option value="premium" ${user.status === 'premium' ? 'selected' : ''}>PREMIUM</option>
+                        <option value="admin" ${user.status === 'admin' ? 'selected' : ''}>ADMIN</option>
+                    </select>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    } catch (e) {
+        console.error("유저 목록 로드 실패", e);
+    }
+}
+
+// 유저 등급 업데이트
+async function updateUserStatus(userId, newStatus) {
+    if (!confirm(`이 유저의 등급을 ${newStatus.toUpperCase()}(으)로 변경하시겠습니까?`)) return;
+
+    try {
+        const response = await fetch('/api/admin/update-user', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                targetUserId: userId, 
+                newStatus: newStatus,
+                userStatus: currentUser.status 
+            })
+        });
+
+        if (response.ok) {
+            alert("등급이 변경되었습니다.");
+            loadAdminStats(); // 대시보드 수치 갱신
+        }
+    } catch (e) {
+        alert("변경 실패");
+    }
+}
 // 관리자 패널 토글 시 데이터 로드
 function toggleAdminPanel() {
     const adminPanel = document.getElementById('admin-panel');
     const filterBar = document.querySelector('.filter-bar');
     const questionArea = document.getElementById('question-area');
-    const adminBtn = document.getElementById('btn-admin-menu'); // 관리자 버튼
+    const adminBtn = document.getElementById('btn-admin-menu');
     
     const isOpening = adminPanel.style.display === 'none';
 
@@ -246,13 +301,14 @@ function toggleAdminPanel() {
         adminPanel.style.display = 'block';
         if (filterBar) filterBar.style.display = 'none';
         if (questionArea) questionArea.style.display = 'none';
-        if (adminBtn) adminBtn.innerText = "✕ 대시보드 닫기";
+        adminBtn.innerText = "✕ 대시보드 닫기";
         loadAdminStats();
+        loadUserList(); // [추가] 유저 목록 로드
     } else {
         adminPanel.style.display = 'none';
         if (filterBar) filterBar.style.display = 'flex';
         if (questionArea) questionArea.style.display = 'block';
-        if (adminBtn) adminBtn.innerText = "📊 통계 대시보드";
+        adminBtn.innerText = "📊 통계 대시보드";
     }
 }
 
