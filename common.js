@@ -252,16 +252,21 @@ async function loadUserList() {
             const tr = document.createElement('tr');
             // user.status 대신 user.user_status를 사용합니다.
             const currentStatus = user.user_status; 
+            const expiry = user.expiry_date ? user.expiry_date : '없음';
             
             tr.innerHTML = `
                 <td>${user.email}</td>
-                <td><span class="badge-${currentStatus}">${currentStatus.toUpperCase()}</span></td>
+                <td>
+                    <span class="badge-${currentStatus}">${currentStatus.toUpperCase()}</span><br>
+                    <small style="color:#718096">만료: ${expiry}</small>
+                </td>
                 <td>
                     <select onchange="updateUserStatus('${user.id}', this.value)">
                         <option value="free" ${currentStatus === 'free' ? 'selected' : ''}>FREE</option>
                         <option value="premium" ${currentStatus === 'premium' ? 'selected' : ''}>PREMIUM</option>
                         <option value="admin" ${currentStatus === 'admin' ? 'selected' : ''}>ADMIN</option>
                     </select>
+                    <button class="btn-date" onclick="setExpiryDate('${user.id}')">📅</button>
                 </td>
             `;
             tbody.appendChild(tr);
