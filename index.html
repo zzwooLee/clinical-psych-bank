@@ -28,6 +28,30 @@
         .modal-buttons { display: flex; gap: 12px; justify-content: center; }
         .btn-modal-close   { background: #f7fafc; color: #4a5568; border: 1px solid #e2e8f0; padding: 10px 20px; border-radius: 8px; cursor: pointer; flex: 1; font-weight: 500; }
         .btn-modal-confirm { background: #364d79; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; flex: 1; font-weight: 600; }
+
+        /* 로그인 / 회원가입 탭 */
+        .auth-tabs {
+            display: flex;
+            border-bottom: 2px solid #e2e8f0;
+            margin-bottom: 28px;
+        }
+        .auth-tab {
+            flex: 1;
+            padding: 10px 0;
+            background: none;
+            border: none;
+            font-size: 1rem;
+            font-weight: 600;
+            color: #a0aec0;
+            cursor: pointer;
+            transition: color 0.2s;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+        }
+        .auth-tab.active {
+            color: var(--primary-color, #364d79);
+            border-bottom-color: var(--primary-color, #364d79);
+        }
     </style>
 </head>
 <body>
@@ -39,25 +63,61 @@
     <main class="container main-auth-container">
         <section id="auth-container" class="auth-section">
 
+            <!-- ── 로그인 탭 ── -->
             <div id="guest-view" class="auth-card">
-                <div class="auth-header">
-                    <h2>환영합니다</h2>
-                    <p>학습을 시작하려면 로그인해주세요.</p>
+
+                <!-- 탭 전환 버튼 -->
+                <div class="auth-tabs">
+                    <button id="tab-login"  class="auth-tab active" onclick="switchTab('login')">로그인</button>
+                    <button id="tab-signup" class="auth-tab"        onclick="switchTab('signup')">회원가입</button>
                 </div>
-                <div class="input-group">
-                    <div class="input-wrapper">
-                        <span class="icon">📧</span>
-                        <input type="email" id="email" placeholder="이메일 주소">
+
+                <!-- 로그인 폼 -->
+                <div id="form-login">
+                    <div class="auth-header">
+                        <h2>환영합니다</h2>
+                        <p>학습을 시작하려면 로그인해주세요.</p>
                     </div>
-                    <div class="input-wrapper">
-                        <span class="icon">🔒</span>
-                        <input type="password" id="password" placeholder="비밀번호">
+                    <div class="input-group">
+                        <div class="input-wrapper">
+                            <span class="icon">📧</span>
+                            <input type="email" id="email" placeholder="이메일 주소">
+                        </div>
+                        <div class="input-wrapper">
+                            <span class="icon">🔒</span>
+                            <input type="password" id="password" placeholder="비밀번호">
+                        </div>
+                    </div>
+                    <div class="button-group">
+                        <button class="btn-primary main-btn" onclick="handleLogin()">로그인</button>
                     </div>
                 </div>
-                <div class="button-group">
-                    <button class="btn-primary main-btn" onclick="handleLogin()">로그인</button>
-                    <button class="btn-secondary main-btn" onclick="handleSignUp()">회원가입</button>
+
+                <!-- 회원가입 폼 -->
+                <div id="form-signup" style="display:none;">
+                    <div class="auth-header">
+                        <h2>회원가입</h2>
+                        <p>이름, 이메일, 비밀번호를 입력해주세요.</p>
+                    </div>
+                    <div class="input-group">
+                        <div class="input-wrapper">
+                            <span class="icon">🙍</span>
+                            <input type="text" id="signup-name" placeholder="이름 (20자 이내)" maxlength="20">
+                        </div>
+                        <div class="input-wrapper">
+                            <span class="icon">📧</span>
+                            <input type="email" id="signup-email" placeholder="이메일 주소">
+                        </div>
+                        <div class="input-wrapper">
+                            <span class="icon">🔒</span>
+                            <input type="password" id="signup-password" placeholder="비밀번호 (6자 이상)">
+                        </div>
+                    </div>
+                    <div class="button-group">
+                        <button class="btn-primary main-btn" onclick="handleSignUp()">가입하기</button>
+                    </div>
                 </div>
+
             </div>
 
             <div id="user-view" class="auth-card" style="display: none;">
@@ -105,5 +165,13 @@
     </div>
 
     <script src="common.js" defer></script>
-</body>
+    <script>
+        function switchTab(tab) {
+            const isLogin = tab === 'login';
+            document.getElementById('form-login').style.display  = isLogin ? 'block' : 'none';
+            document.getElementById('form-signup').style.display = isLogin ? 'none'  : 'block';
+            document.getElementById('tab-login').classList.toggle('active',  isLogin);
+            document.getElementById('tab-signup').classList.toggle('active', !isLogin);
+        }
+    </script>
 </html>
