@@ -391,3 +391,46 @@ body {
     line-height: 1.6;
     word-break: keep-all;
 }
+
+/* 관리자 버튼 및 패널 스타일 */
+.btn-admin-outline {
+    background: #fff;
+    border: 1px solid #e53e3e;
+    color: #e53e3e;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    cursor: pointer;
+}
+
+.admin-panel-card {
+    background: #fff5f5;
+    border: 1px solid #feb2b2;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.admin-form-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.full-row { grid-column: span 3; height: 80px; }
+
+.admin-actions {
+    margin-top: 15px;
+    display: flex;
+    gap: 10px;
+}
+
+.btn-ai-gen {
+    background-color: #805ad5;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+}
