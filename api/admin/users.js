@@ -1,25 +1,42 @@
-// api/admin/users.js
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
+// [#6 수정] Service Role Key
+const supabase = createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY
+);
 
 export default async function handler(req, res) {
-  const { userStatus } = req.body;
+    if (req.method !== 'POST') {
+        return res.status(405).json({ message: 'Method Not Allowed' });
+    }
 
-  if (userStatus !== 'admin') {
-    return res.status(403).json({ message: "권한이 없습니다." });
-  }
+    const { requesterId } = req.body;
 
-  try {
-    // 컬럼명을 status -> user_status로 변경
-    const { data, error } = await supabase
-      .from('users') 
-      .select('id, email, user_status, expiry_date') 
-      .order('email', { ascending: true });
+    // [#7 핵심 수정] 클라이언트 전달 userStatus 불신 → DB에서 직접 권한 조회
+    if (!requesterId) {
+        return res.status(403).json({ message: '요청자 ID가 없습니다.' });
+    }
 
-    if (error) throw error;
-    res.status(200).json(data);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
+    const { data: requester, error: authErr } = await supabase
+        .from('users')
+        .select('user_status')
+        .eq('id', requesterId)
+        .single();
+
+    if (authErr || !requester || requester.user_status !== 'admin') {
+        return res.status(403).json({ message: '권한이 없습니다.' });
+    }
+
+    try {
+        const { data, error } = await supabase
+            .from('users')
+            .select('id, email, user_status, expiry_date')
+            .order('email', { ascending: true });
+
+        if (error) throw error;
+        res.status(200).json(data);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
 }
