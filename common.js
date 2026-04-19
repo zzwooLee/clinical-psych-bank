@@ -258,9 +258,16 @@ window.handleLogin = async function () {
 
 // [#1 추가] 회원가입 핸들러 — index.html의 onclick="handleSignUp()" 연결
 window.handleSignUp = async function () {
-    const email    = document.getElementById('email')?.value.trim();
-    const password = document.getElementById('password')?.value;
+    const name     = document.getElementById('signup-name')?.value.trim();
+    const email    = document.getElementById('signup-email')?.value.trim();
+    const password = document.getElementById('signup-password')?.value;
 
+    if (!name) {
+        return showAlert('입력 오류', '이름을 입력해주세요.');
+    }
+    if (name.length > 20) {
+        return showAlert('입력 오류', '이름은 20자 이내로 입력해주세요.');
+    }
     if (!email || !password) {
         return showAlert('입력 오류', '이메일과 비밀번호를 입력해주세요.');
     }
@@ -272,7 +279,7 @@ window.handleSignUp = async function () {
         const res  = await fetch('/api/signup', {
             method : 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body   : JSON.stringify({ email, password })
+            body   : JSON.stringify({ name, email, password })
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.message);
