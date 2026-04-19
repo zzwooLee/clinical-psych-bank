@@ -1,9 +1,11 @@
+/* common.js */
+
 // ─────────────────────────────────────────────
 // 1. 전역 상태 관리
 // ─────────────────────────────────────────────
 let allQuestions = [];
 let currentIndex = 0;
-// [#3 수정] sessionStorage 저장 시 status 필드명으로 통일했으므로 user_status 폴백 제거
+// [#3] sessionStorage에 저장 시 status 필드로 통일했으므로 user_status 폴백 제거
 let currentUser = JSON.parse(sessionStorage.getItem('quiz_user')) || { email: '', status: 'free' };
 let currentTargetUserId = null;
 
@@ -13,10 +15,20 @@ let currentTargetUserId = null;
 document.addEventListener('DOMContentLoaded', () => {
     updateUserUI();
 
-    // [#3 수정] currentUser.status 단일 필드만 사용
+    // [#3] currentUser.status 단일 필드 사용
     if (currentUser.status === 'admin') {
         const adminBtn = document.getElementById('btn-admin-menu');
         if (adminBtn) adminBtn.style.display = 'inline-block';
+    }
+
+    // index.html 전용: 이미 로그인된 상태면 user-view 표시
+    const guestView = document.getElementById('guest-view');
+    const userView  = document.getElementById('user-view');
+    if (guestView && userView && currentUser.email) {
+        guestView.style.display = 'none';
+        userView.style.display  = 'block';
+        const infoEl = document.getElementById('user-display-info');
+        if (infoEl) infoEl.innerText = `${currentUser.email} (${(currentUser.status || 'free').toUpperCase()})`;
     }
 });
 
@@ -28,7 +40,7 @@ function updateUserUI() {
         const statusEl = document.getElementById('display-status');
 
         if (emailEl)  emailEl.innerText  = currentUser.email;
-        // [#3 수정] status 단일 필드 사용
+        // [#3] status 단일 필드 사용
         if (statusEl) statusEl.innerText = (currentUser.status || 'free').toUpperCase();
     }
 }
@@ -37,15 +49,19 @@ function updateUserUI() {
 // 3. 커스텀 모달 제어 (주소창 노출 방지)
 // ─────────────────────────────────────────────
 window.closeCustomModal = function () {
-    document.getElementById('custom-modal').style.display = 'none';
+    const modal = document.getElementById('custom-modal');
+    if (modal) modal.style.display = 'none';
 };
 
 window.showAlert = function (title, desc) {
     const modal = document.getElementById('custom-modal');
+    // 모달 DOM이 없는 페이지(index.html 등) 대비 안전망
+    if (!modal) { alert(`${title}\n${desc}`); return; }
+
     document.getElementById('modal-title').innerText = title;
     document.getElementById('modal-desc').innerText  = desc;
-    document.getElementById('modal-date-input').style.display   = 'none';
-    document.getElementById('modal-cancel-btn').style.display   = 'none';
+    document.getElementById('modal-date-input').style.display = 'none';
+    document.getElementById('modal-cancel-btn').style.display = 'none';
 
     const confirmBtn = document.getElementById('modal-confirm-btn');
     confirmBtn.onclick = closeCustomModal;
@@ -56,10 +72,7 @@ window.showAlert = function (title, desc) {
 // 4. 인증 — 로그인 / 회원가입 / 로그아웃
 // ─────────────────────────────────────────────
 
-/**
- * [#1 신규 추가] 로그인 핸들러
- * index.html의 handleLogin() 버튼과 연결
- */
+// [#1 추가] 로그인 핸들러 — index.html의 onclick="handleLogin()" 연결
 window.handleLogin = async function () {
     const email    = document.getElementById('email')?.value.trim();
     const password = document.getElementById('password')?.value;
@@ -77,11 +90,11 @@ window.handleLogin = async function () {
         const data = await res.json();
         if (!res.ok) throw new Error(data.message);
 
-        // [#3 수정] 세션 저장 시 status 필드명으로 통일
+        // [#3] 세션 저장 시 status 필드명으로 통일
         const userData = {
             id    : data.user.id,
             email : data.user.email,
-            status: data.status   // ← 'free' | 'premium' | 'admin'
+            status: data.status   // 'free' | 'premium' | 'admin'
         };
         sessionStorage.setItem('quiz_user', JSON.stringify(userData));
         currentUser = userData;
@@ -89,12 +102,17 @@ window.handleLogin = async function () {
         // index.html 전용: guest-view → user-view 전환
         const guestView = document.getElementById('guest-view');
         const userView  = document.getElementById('user-view');
-
         if (guestView && userView) {
             guestView.style.display = 'none';
             userView.style.display  = 'block';
             const infoEl = document.getElementById('user-display-info');
             if (infoEl) infoEl.innerText = `${data.user.email} (${data.status.toUpperCase()})`;
+
+            // admin이면 버튼 표시
+            if (data.status === 'admin') {
+                const adminBtn = document.getElementById('btn-admin-menu');
+                if (adminBtn) adminBtn.style.display = 'inline-block';
+            }
         } else {
             // premium.html 등 다른 페이지에서 호출된 경우
             location.href = 'premium.html';
@@ -104,10 +122,7 @@ window.handleLogin = async function () {
     }
 };
 
-/**
- * [#1 신규 추가] 회원가입 핸들러
- * index.html의 handleSignUp() 버튼과 연결
- */
+// [#1 추가] 회원가입 핸들러 — index.html의 onclick="handleSignUp()" 연결
 window.handleSignUp = async function () {
     const email    = document.getElementById('email')?.value.trim();
     const password = document.getElementById('password')?.value;
@@ -134,13 +149,23 @@ window.handleSignUp = async function () {
     }
 };
 
-/** 로그아웃 핸들러 */
+// 로그아웃 — 원본 로직 유지, 모달 없는 페이지 안전망 추가
 window.handleLogout = function () {
     const modal = document.getElementById('custom-modal');
+
+    // 모달이 없는 페이지(index.html)는 바로 처리
+    if (!modal) {
+        if (confirm('정말 로그아웃 하시겠습니까?')) {
+            sessionStorage.removeItem('quiz_user');
+            location.href = 'index.html';
+        }
+        return;
+    }
+
     document.getElementById('modal-title').innerText = '로그아웃';
     document.getElementById('modal-desc').innerText  = '정말 로그아웃 하시겠습니까?';
-    document.getElementById('modal-date-input').style.display  = 'none';
-    document.getElementById('modal-cancel-btn').style.display  = 'inline-block';
+    document.getElementById('modal-date-input').style.display = 'none';
+    document.getElementById('modal-cancel-btn').style.display = 'inline-block';
 
     document.getElementById('modal-confirm-btn').onclick = () => {
         sessionStorage.removeItem('quiz_user');
@@ -153,11 +178,8 @@ window.handleLogout = function () {
 // 5. 퀴즈 엔진
 // ─────────────────────────────────────────────
 
-/**
- * [#10 수정] 인증 체크 추가 — 비로그인 상태에서 호출 방지
- */
+// [#10 추가] 인증 체크 — 비로그인 상태에서 호출 방지
 window.loadQuestions = async function () {
-    // [#10 신규] 세션 인증 확인
     if (!currentUser?.email) {
         showAlert('인증 필요', '로그인 후 이용해주세요.');
         return;
@@ -166,14 +188,13 @@ window.loadQuestions = async function () {
     const area = document.getElementById('question-area');
     if (area) area.innerHTML = '<div style="text-align:center; padding:50px;">데이터 로드 중...</div>';
 
-    // [#3 수정] userStatus 필드 단일화
+    // [#3] userStatus 단일 필드 사용
     const payload = {
         grade     : document.getElementById('sel-grade')?.value,
         category  : document.getElementById('sel-category')?.value,
         year      : document.getElementById('sel-year')?.value,
         limit     : parseInt(document.getElementById('sel-limit')?.value || 20),
-        userStatus: currentUser.status,          // ← 통일된 단일 필드
-        userId    : currentUser.id               // 서버 측 권한 재검증용
+        userStatus: currentUser.status
     };
 
     try {
@@ -182,17 +203,11 @@ window.loadQuestions = async function () {
             headers: { 'Content-Type': 'application/json' },
             body   : JSON.stringify(payload)
         });
-
-        if (!response.ok) {
-            const err = await response.json();
-            throw new Error(err.message || '서버 오류');
-        }
-
         allQuestions = await response.json();
         currentIndex = 0;
         renderQuestion();
     } catch (e) {
-        if (area) area.innerHTML = `<div style="text-align:center; padding:50px; color:#e74c3c;">불러오기 실패: ${e.message}</div>`;
+        if (area) area.innerHTML = '<div style="text-align:center; padding:50px;">불러오기 실패</div>';
     }
 };
 
@@ -231,23 +246,23 @@ function renderQuestion() {
 }
 
 window.checkAnswer = function (selected) {
-    const q          = allQuestions[currentIndex];
-    const correct    = q.answer;
-    const resultBox  = document.getElementById('result-box');
-    const btns       = document.querySelectorAll('.choice-btn');
+    const q         = allQuestions[currentIndex];
+    const correct   = q.answer;
+    const resultBox = document.getElementById('result-box');
+    const btns      = document.querySelectorAll('.choice-btn');
 
     btns.forEach(btn => (btn.style.pointerEvents = 'none'));
 
     let resultHTML = '';
     if (selected == correct) {
-        document.getElementById(`choice-${selected}`).style.borderColor      = '#2ecc71';
-        document.getElementById(`choice-${selected}`).style.backgroundColor  = '#eafaf2';
+        document.getElementById(`choice-${selected}`).style.borderColor     = '#2ecc71';
+        document.getElementById(`choice-${selected}`).style.backgroundColor = '#eafaf2';
         resultHTML = `<div style="color:#2ecc71; font-weight:800; font-size:1.2rem; margin-bottom:10px;">✅ 정답입니다!</div>`;
     } else {
-        document.getElementById(`choice-${selected}`).style.borderColor      = '#e74c3c';
-        document.getElementById(`choice-${selected}`).style.backgroundColor  = '#fdf0ee';
-        document.getElementById(`choice-${correct}`).style.borderColor       = '#2ecc71';
-        document.getElementById(`choice-${correct}`).style.backgroundColor   = '#f0fff4';
+        document.getElementById(`choice-${selected}`).style.borderColor     = '#e74c3c';
+        document.getElementById(`choice-${selected}`).style.backgroundColor = '#fdf0ee';
+        document.getElementById(`choice-${correct}`).style.borderColor      = '#2ecc71';
+        document.getElementById(`choice-${correct}`).style.backgroundColor  = '#f0fff4';
         resultHTML = `<div style="color:#e74c3c; font-weight:800; font-size:1.2rem; margin-bottom:10px;">❌ 오답입니다.</div>
                       <div style="background:#f8f9fa; padding:12px; border-radius:8px; margin-bottom:15px;">정답은 <strong>${correct}번</strong> 입니다.</div>`;
     }
@@ -258,8 +273,8 @@ window.checkAnswer = function (selected) {
                 <strong>💡 해설:</strong><br>${q.explanation}
             </div>`;
     }
-    resultBox.innerHTML      = resultHTML;
-    resultBox.style.display  = 'block';
+    resultBox.innerHTML     = resultHTML;
+    resultBox.style.display = 'block';
 };
 
 window.changeQuestion = function (step) {
@@ -268,14 +283,14 @@ window.changeQuestion = function (step) {
 };
 
 // ─────────────────────────────────────────────
-// 6. 관리자 기능
+// 6. 관리자 기능 (원본 로직 유지)
 // ─────────────────────────────────────────────
 window.toggleAdminPanel = function () {
-    const adminPanel  = document.getElementById('admin-panel');
-    const filterBar   = document.querySelector('.filter-bar');
+    const adminPanel   = document.getElementById('admin-panel');
+    const filterBar    = document.querySelector('.filter-bar');
     const questionArea = document.getElementById('question-area');
-    const adminBtn    = document.getElementById('btn-admin-menu');
-    const isOpening   = adminPanel.style.display === 'none';
+    const adminBtn     = document.getElementById('btn-admin-menu');
+    const isOpening    = adminPanel.style.display === 'none';
 
     if (isOpening) {
         adminPanel.style.display = 'block';
@@ -293,15 +308,12 @@ window.toggleAdminPanel = function () {
 };
 
 async function loadAdminStats() {
-    // [#3 수정] status 단일 필드 사용
+    // [#3] status 단일 필드
     try {
         const response = await fetch('/api/admin/stats', {
             method : 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body   : JSON.stringify({
-                requesterId: currentUser.id,    // [#7] 서버 측 DB 권한 재검증용
-                userStatus : currentUser.status
-            })
+            body   : JSON.stringify({ userStatus: currentUser.status })
         });
         const stats = await response.json();
         document.getElementById('stat-total-questions').innerText = (stats.totalQuestions || 0).toLocaleString();
@@ -311,15 +323,12 @@ async function loadAdminStats() {
 }
 
 async function loadUserList() {
-    // [#3 수정] status 단일 필드 사용
+    // [#3] status 단일 필드
     try {
         const response = await fetch('/api/admin/users', {
             method : 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body   : JSON.stringify({
-                requesterId: currentUser.id,    // [#7] 서버 측 DB 권한 재검증용
-                userStatus : currentUser.status
-            })
+            body   : JSON.stringify({ userStatus: currentUser.status })
         });
         const users = await response.json();
         const tbody = document.getElementById('user-list-body');
@@ -327,8 +336,8 @@ async function loadUserList() {
         tbody.innerHTML = '';
 
         users.forEach(user => {
-            const tr      = document.createElement('tr');
-            const uStatus = user.user_status || 'free';
+            const tr            = document.createElement('tr');
+            const uStatus       = user.user_status || 'free';
             const expiryDisplay = user.expiry_date ? user.expiry_date.split('T')[0] : '-';
 
             tr.innerHTML = `
@@ -359,7 +368,7 @@ window.refreshAdminDashboard = async function () {
 };
 
 // ─────────────────────────────────────────────
-// 7. 등급 / 기한 / 삭제 (커스텀 모달 연동)
+// 7. 등급 / 기한 / 삭제 (원본 로직 유지)
 // ─────────────────────────────────────────────
 window.updateUserStatus = function (userId, newStatus) {
     const modal      = document.getElementById('custom-modal');
@@ -392,26 +401,22 @@ window.updateUserStatus = function (userId, newStatus) {
 };
 
 async function executeStatusUpdate(userId, newStatus, expiry) {
-    // [#3 수정] status 단일 필드
+    // [#3] status 단일 필드
     try {
         const response = await fetch('/api/admin/update-user', {
             method : 'POST',
             headers: { 'Content-Type': 'application/json' },
             body   : JSON.stringify({
-                requesterId  : currentUser.id,
-                userStatus   : currentUser.status,
-                targetUserId : userId,
+                targetUserId: userId,
                 newStatus,
-                expiryDate   : expiry
+                expiryDate  : expiry,
+                userStatus  : currentUser.status
             })
         });
         if (response.ok) {
             closeCustomModal();
             showAlert('성공', '변경 사항이 저장되었습니다.');
             refreshAdminDashboard();
-        } else {
-            const err = await response.json();
-            showAlert('오류', err.message || '변경 실패');
         }
     } catch (e) { showAlert('오류', '통신 실패'); }
 }
@@ -428,14 +433,14 @@ window.setExpiryDate = function (userId) {
 
     document.getElementById('modal-confirm-btn').onclick = async () => {
         if (!dateInput.value) return;
+        // [#3] status 단일 필드
         const response = await fetch('/api/admin/update-user', {
             method : 'POST',
             headers: { 'Content-Type': 'application/json' },
             body   : JSON.stringify({
-                requesterId : currentUser.id,
-                userStatus  : currentUser.status,
                 targetUserId: userId,
-                expiryDate  : dateInput.value
+                expiryDate  : dateInput.value,
+                userStatus  : currentUser.status
             })
         });
         if (response.ok) {
@@ -451,17 +456,17 @@ window.deleteUser = function (userId, email) {
     const modal = document.getElementById('custom-modal');
     document.getElementById('modal-title').innerText = '회원 삭제';
     document.getElementById('modal-desc').innerText  = `[경고] ${email} 사용자를 정말 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`;
-    document.getElementById('modal-date-input').style.display  = 'none';
-    document.getElementById('modal-cancel-btn').style.display  = 'inline-block';
+    document.getElementById('modal-date-input').style.display = 'none';
+    document.getElementById('modal-cancel-btn').style.display = 'inline-block';
 
     document.getElementById('modal-confirm-btn').onclick = async () => {
+        // [#3] status 단일 필드
         const response = await fetch('/api/admin/delete-user', {
             method : 'POST',
             headers: { 'Content-Type': 'application/json' },
             body   : JSON.stringify({
-                requesterId : currentUser.id,
-                userStatus  : currentUser.status,
-                targetUserId: userId
+                targetUserId: userId,
+                userStatus  : currentUser.status
             })
         });
         if (response.ok) {
