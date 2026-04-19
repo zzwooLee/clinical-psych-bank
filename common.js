@@ -235,11 +235,24 @@ async function loadAdminStats() {
 
 // 관리자 패널 토글 시 데이터 로드
 function toggleAdminPanel() {
-    const panel = document.getElementById('admin-panel');
-    const isOpening = panel.style.display === 'none';
-    panel.style.display = isOpening ? 'block' : 'none';
+    const adminPanel = document.getElementById('admin-panel');
+    const filterBar = document.querySelector('.filter-bar'); // 필터 영역
+    const questionArea = document.getElementById('question-area'); // 문제 영역
     
-    if (isOpening) loadAdminStats();
+    const isOpening = adminPanel.style.display === 'none';
+
+    if (isOpening) {
+        // 1. 대시보드를 열 때
+        adminPanel.style.display = 'block';
+        if (filterBar) filterBar.style.display = 'none';   // 필터 숨김
+        if (questionArea) questionArea.style.display = 'none'; // 퀴즈 숨김
+        loadAdminStats(); // 통계 데이터 로드
+    } else {
+        // 2. 대시보드를 닫을 때
+        adminPanel.style.display = 'none';
+        if (filterBar) filterBar.style.display = 'flex';    // 필터 다시 표시
+        if (questionArea) questionArea.style.display = 'block'; // 퀴즈 다시 표시
+    }
 }
 
 // 초기 로드 시 유저 정보 확인
