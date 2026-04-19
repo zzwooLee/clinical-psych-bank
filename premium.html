@@ -115,7 +115,7 @@
         <!-- ── 상단 상태 바 ── -->
         <div class="user-status-bar">
             <div class="user-info">
-                <span class="user-email" id="display-email">로딩 중...</span>
+                <span class="user-name"  id="display-name">로딩 중...</span>
                 <span class="badge" id="display-status">FREE</span>
                 <button id="btn-admin-menu" class="btn-admin-outline"
                         style="display:none; margin-left:10px;"
@@ -367,7 +367,8 @@
             // ★ 아래 이메일 주소를 실제 관리자 이메일로 교체하세요
             const ADMIN_EMAIL = 'admin@example.com';
 
-            const userEmail = document.getElementById('display-email')?.innerText?.trim() || '';
+            const _u = JSON.parse(sessionStorage.getItem('quiz_user') || '{}');
+            const userEmail = _u.email || '';
             const subject   = encodeURIComponent('[프리미엄 신청] 임상심리사 퀴즈 뱅크');
             const body      = encodeURIComponent(
                 '안녕하세요, 프리미엄 멤버십을 신청합니다.\n\n' +
