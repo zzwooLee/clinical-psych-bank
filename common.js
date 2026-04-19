@@ -4,6 +4,7 @@
 let allQuestions = [];
 let currentIndex = 0;
 let currentUser = JSON.parse(sessionStorage.getItem('quiz_user')) || { email: '', status: 'free' };
+let currentTargetUserId = null; // 날짜를 변경 중인 유저 ID 저장용
 
 /**
  * 2. 회원가입 함수
@@ -300,60 +301,32 @@ async function refreshAdminDashboard() {
     }
 }
 
-// 유저 등급 업데이트
-async function updateUserStatus(userId, newStatus) {
-    let expiryDate = null;
+/* common.js */
 
-    // Premium 선택 시 날짜 입력받기
-    if (newStatus === 'premium') {
-        const input = prompt("만료일을 입력해주세요 (예: 2024-12-31). 입력하지 않으면 한 달 뒤로 자동 설정됩니다.");
-        if (input === null) return; // 취소 누르면 중단
-        
-        if (input.trim() === "") {
-            // 기본값: 오늘로부터 1개월 뒤
-            const date = new Date();
-            date.setMonth(date.getMonth() + 1);
-            expiryDate = date.toISOString().split('T')[0];
-        } else {
-            expiryDate = input;
-        }
-    }
+let currentTargetUserId = null; // 날짜를 변경 중인 유저 ID 저장용
 
-    try {
-        const response = await fetch('/api/admin/update-user', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                targetUserId: userId, 
-                newStatus: newStatus,
-                expiryDate: expiryDate, // 만료일 추가 전달
-                userStatus: currentUser.status 
-            })
-        });
-
-        if (response.ok) {
-            alert("변경되었습니다.");
-            refreshAdminDashboard(); // 변경 후 즉시 새로고침
-        } else {
-            const err = await response.json();
-            alert("에러: " + err.message);
-        }
-    } catch (e) {
-        alert("통신 오류가 발생했습니다.");
-    }
+/**
+ * 1. 📅 버튼 클릭 시 실행: 캘린더 열기
+ */
+function setExpiryDate(userId) {
+    currentTargetUserId = userId;
+    const datePicker = document.getElementById('hidden-date-picker');
+    
+    // 캘린더 창 강제 호출 (브라우저 표준 기능)
+    datePicker.showPicker(); 
 }
 
 /**
- * 만료일 수동 설정 함수
+ * 2. 캘린더에서 날짜 선택 완료 시 실행
  */
-async function setExpiryDate(userId) {
-    const newDate = prompt("새로운 만료일을 입력해주세요 (YYYY-MM-DD)\n예: 2024-12-31");
-    
-    if (newDate === null) return; // 취소 시 중단
+async function handleDateSelected() {
+    const datePicker = document.getElementById('hidden-date-picker');
+    const selectedDate = datePicker.value; // YYYY-MM-DD 형식으로 반환됨
 
-    // 날짜 형식 유효성 검사 (간단하게)
-    if (newDate !== "" && !/^\d{4}-\d{2}-\d{2}$/.test(newDate)) {
-        alert("날짜 형식이 올바르지 않습니다. (YYYY-MM-DD)");
+    if (!selectedDate || !currentTargetUserId) return;
+
+    if (!confirm(`만료일을 ${selectedDate}로 변경하시겠습니까?`)) {
+        datePicker.value = '';
         return;
     }
 
@@ -362,21 +335,56 @@ async function setExpiryDate(userId) {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
-                targetUserId: userId, 
-                expiryDate: newDate, // 만료일만 전달
+                targetUserId: currentTargetUserId, 
+                expiryDate: selectedDate,
                 userStatus: currentUser.status 
             })
         });
 
         if (response.ok) {
-            alert("만료일이 업데이트되었습니다.");
+            alert("만료일이 성공적으로 변경되었습니다.");
+            datePicker.value = ''; // 입력값 초기화
             refreshAdminDashboard(); // 화면 갱신
         } else {
-            alert("업데이트 실패");
+            alert("만료일 업데이트에 실패했습니다.");
         }
     } catch (e) {
         console.error(e);
-        alert("통신 오류");
+        alert("통신 오류가 발생했습니다.");
+    }
+}
+
+/**
+ * 3. 등급 변경 시 Premium인 경우에도 캘린더 연동 (기존 함수 수정)
+ */
+async function updateUserStatus(userId, newStatus) {
+    if (newStatus === 'premium') {
+        alert("Premium 등급은 만료일 설정이 필요합니다. 캘린더에서 날짜를 선택해주세요.");
+        setExpiryDate(userId); // 캘린더 함수 호출
+        return; 
+    }
+
+    // 그 외(Free, Admin) 등급은 기존대로 처리
+    if (!confirm(`${newStatus.toUpperCase()} 등급으로 변경하시겠습니까?`)) return;
+
+    try {
+        const response = await fetch('/api/admin/update-user', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                targetUserId: userId, 
+                newStatus: newStatus,
+                expiryDate: null, // 프리미엄이 아니면 만료일 제거
+                userStatus: currentUser.status 
+            })
+        });
+
+        if (response.ok) {
+            alert("등급이 변경되었습니다.");
+            refreshAdminDashboard();
+        }
+    } catch (e) {
+        alert("오류가 발생했습니다.");
     }
 }
 
