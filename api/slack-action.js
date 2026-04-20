@@ -1,5 +1,3 @@
-// Slack 버튼 클릭 처리 → DB 등급 변경 → SMTP로 신청자에게 메일 발송
-
 import { createClient } from '@supabase/supabase-js';
 import nodemailer       from 'nodemailer';
 
@@ -12,29 +10,52 @@ const supabase = createClient(
 async function sendEmail({ to, subject, html }) {
   const smtpHost = process.env.SMTP_HOST;
   const smtpPort = parseInt(process.env.SMTP_PORT || '465');
-  const smtpUser = process.env.SMTP_USER;  // bee@lumoslab.kr
+  const smtpUser = process.env.SMTP_USER;
   const smtpPass = process.env.SMTP_PASSWORD;
 
+  // 환경변수 로그 (비밀번호 제외)
+  console.log('SMTP 설정:', {
+    host  : smtpHost,
+    port  : smtpPort,
+    user  : smtpUser,
+    secure: smtpPort === 465
+  });
+
   if (!smtpHost || !smtpUser || !smtpPass) {
-    console.warn('SMTP 환경변수 미설정 — 메일 발송 건너뜀');
+    const missing = [];
+    if (!smtpHost) missing.push('SMTP_HOST');
+    if (!smtpUser) missing.push('SMTP_USER');
+    if (!smtpPass) missing.push('SMTP_PASSWORD');
+    console.error('SMTP 환경변수 누락:', missing.join(', '));
     return;
   }
 
-  const transporter = nodemailer.createTransport({
-    host  : smtpHost,
-    port  : smtpPort,
-    secure: smtpPort === 465,  // 465는 SSL, 587은 TLS
-    auth  : { user: smtpUser, pass: smtpPass }
-  });
+  try {
+    const transporter = nodemailer.createTransport({
+      host  : smtpHost,
+      port  : smtpPort,
+      secure: smtpPort === 465,
+      auth  : { user: smtpUser, pass: smtpPass },
+      tls   : { rejectUnauthorized: false }  // 인증서 오류 방지
+    });
 
-  const info = await transporter.sendMail({
-    from   : `임상심리사 퀴즈 뱅크 <${smtpUser}>`,
-    to,
-    subject,
-    html
-  });
+    // SMTP 연결 테스트
+    await transporter.verify();
+    console.log('SMTP 연결 성공');
 
-  console.log('메일 발송 성공:', info.messageId);
+    const info = await transporter.sendMail({
+      from   : `임상심리사 퀴즈 뱅크 <${smtpUser}>`,
+      to,
+      subject,
+      html
+    });
+
+    console.log('메일 발송 성공:', info.messageId, '→', to);
+
+  } catch (e) {
+    console.error('SMTP 오류:', e.message);
+    console.error('SMTP 오류 상세:', e.code, e.response);
+  }
 }
 
 export default async function handler(req, res) {
@@ -56,8 +77,6 @@ export default async function handler(req, res) {
       payload = req.body;
     }
 
-    console.log('actionId:', payload?.actions?.[0]?.action_id);
-
     if (payload?.type === 'url_verification') {
       return res.status(200).json({ challenge: payload.challenge });
     }
@@ -70,13 +89,16 @@ export default async function handler(req, res) {
     const adminEmail  = process.env.SMTP_USER || 'bee@lumoslab.kr';
     const serviceName = '임상심리사 퀴즈 뱅크';
 
+    console.log('처리 시작:', { actionId, userEmail, userName });
+
     if (!actionId || !responseUrl) {
+      console.error('필수값 없음:', { actionId, responseUrl: !!responseUrl });
       return res.status(200).end();
     }
 
     // ── 승인 처리 ──
     if (actionId === 'approve_premium') {
-      const expiry = new Date();
+      const expiry    = new Date();
       expiry.setMonth(expiry.getMonth() + 1);
       const expiryStr = expiry.toLocaleDateString('ko-KR');
 
@@ -87,14 +109,19 @@ export default async function handler(req, res) {
         .eq('id', userId);
 
       if (error) {
+        console.error('DB 업데이트 실패 (id):', error.message, '→ email로 재시도');
         const { error: error2 } = await supabase
           .from('users')
           .update({ user_status: 'premium', expiry_date: expiry.toISOString() })
           .eq('email', userEmail);
-        if (error2) throw new Error(error2.message);
+        if (error2) console.error('DB 업데이트 실패 (email):', error2.message);
+        else console.log('DB 업데이트 성공 (email)');
+      } else {
+        console.log('DB 업데이트 성공 (id)');
       }
 
       // 승인 메일 발송
+      console.log('승인 메일 발송 시작 →', userEmail);
       await sendEmail({
         to     : userEmail,
         subject: `[${serviceName}] 프리미엄 멤버십이 활성화되었습니다 🎉`,
@@ -140,8 +167,7 @@ export default async function handler(req, res) {
 
     // ── 거절 처리 ──
     if (actionId === 'reject_premium') {
-
-      // 거절 메일 발송
+      console.log('거절 메일 발송 시작 →', userEmail);
       await sendEmail({
         to     : userEmail,
         subject: `[${serviceName}] 프리미엄 신청 결과 안내`,
@@ -181,7 +207,7 @@ export default async function handler(req, res) {
     res.status(200).end();
 
   } catch (error) {
-    console.error('slack-action error:', error.message);
+    console.error('slack-action 전체 오류:', error.message);
     res.status(200).end();
   }
 }
