@@ -14,19 +14,19 @@
         }
         .modal-content {
             background: white; padding: 30px; border-radius: 16px; width: 340px;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
             text-align: center; border: 1px solid #edf2f7;
         }
         .modal-content h3 { margin-top: 0; color: #1a202c; font-weight: 800; margin-bottom: 10px; }
-        .modal-content p { font-size: 0.95rem; color: #4a5568; margin-bottom: 20px; line-height: 1.5; }
+        .modal-content p  { font-size: 0.95rem; color: #4a5568; margin-bottom: 20px; line-height: 1.5; }
         #modal-date-input {
-            width: 100%; padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px; 
+            width: 100%; padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px;
             margin-bottom: 20px; font-size: 1rem; outline: none; transition: border 0.2s;
         }
-        #modal-date-input:focus { border-color: #3182ce; box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.2); }
+        #modal-date-input:focus { border-color: #3182ce; box-shadow: 0 0 0 3px rgba(66,153,225,0.2); }
         .modal-buttons { display: flex; gap: 12px; justify-content: center; }
-        .btn-modal-close    { background: #f7fafc; color: #4a5568; border: 1px solid #e2e8f0; padding: 10px 20px; border-radius: 8px; cursor: pointer; flex: 1; font-weight: 500; }
-        .btn-modal-confirm  { background: #3182ce; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; flex: 1; font-weight: 600; }
+        .btn-modal-close   { background: #f7fafc; color: #4a5568; border: 1px solid #e2e8f0; padding: 10px 20px; border-radius: 8px; cursor: pointer; flex: 1; font-weight: 500; }
+        .btn-modal-confirm { background: #3182ce; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; flex: 1; font-weight: 600; }
 
         .user-table th { background-color: #f8fafc; color: #64748b; font-weight: 600; font-size: 0.85rem; border-bottom: 2px solid #e2e8f0; }
         .user-table td { border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
@@ -34,141 +34,75 @@
         /* ── 프리미엄 신청 버튼 ── */
         .btn-upgrade {
             background: linear-gradient(135deg, #f6c90e, #f0a500);
-            color: #1a202c;
-            border: none;
-            padding: 7px 16px;
-            border-radius: 20px;
-            font-weight: 700;
-            font-size: 0.85rem;
-            cursor: pointer;
-            box-shadow: 0 2px 8px rgba(246,201,14,0.4);
-            transition: all 0.2s;
-            white-space: nowrap;
+            color: #1a202c; border: none; padding: 7px 16px; border-radius: 20px;
+            font-weight: 700; font-size: 0.85rem; cursor: pointer;
+            box-shadow: 0 2px 8px rgba(246,201,14,0.4); transition: all 0.2s; white-space: nowrap;
         }
-        .btn-upgrade:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(246,201,14,0.5);
-        }
+        .btn-upgrade:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(246,201,14,0.5); }
 
         /* ── 업그레이드 모달 ── */
         .upgrade-icon  { font-size: 2.5rem; margin-bottom: 10px; }
         .upgrade-title { font-size: 1.4rem; font-weight: 800; color: #1a202c; margin-bottom: 6px; }
-        .upgrade-sub   { font-size: 0.9rem; color: #718096; margin-bottom: 24px; }
+        .upgrade-sub   { font-size: 0.9rem; color: #718096; margin-bottom: 20px; }
         .upgrade-benefits {
-            background: #f8faff;
-            border: 1px solid #e2e8f0;
-            border-radius: 12px;
-            padding: 18px 20px;
-            margin-bottom: 24px;
-            text-align: left;
+            background: #f8faff; border: 1px solid #e2e8f0; border-radius: 12px;
+            padding: 14px 18px; margin-bottom: 18px; text-align: left;
         }
         .upgrade-benefits li {
-            list-style: none;
-            font-size: 0.9rem;
-            color: #2d3748;
-            padding: 5px 0;
-            display: flex;
-            align-items: center;
-            gap: 8px;
+            list-style: none; font-size: 0.9rem; color: #2d3748;
+            padding: 4px 0; display: flex; align-items: center; gap: 8px;
         }
-
-        /* 이메일 신청 버튼 */
-        .btn-email-apply {
-            width: 100%;
-            padding: 14px;
-            border-radius: 10px;
-            font-size: 1rem;
-            font-weight: 700;
-            cursor: pointer;
-            border: none;
-            background: var(--primary-color, #364d79);
-            color: #fff;
-            transition: all 0.2s;
-            margin-bottom: 10px;
-        }
-        .btn-email-apply:hover {
-            background: #2a3d61;
-            transform: translateY(-1px);
-        }
-
-        .upgrade-notice {
-            font-size: 0.78rem;
-            color: #a0aec0;
-            margin-top: 14px;
-            line-height: 1.6;
-        }
-        .btn-close-text {
-            margin-top: 14px;
-            background: none;
-            border: none;
-            color: #a0aec0;
-            cursor: pointer;
-            font-size: 0.85rem;
-        }
-        .btn-close-text:hover { color: #718096; }
-
         /* 가격 / 계좌 정보 박스 */
         .upgrade-payment-info {
-            background: #fff8e1;
-            border: 1px solid #f6c90e;
-            border-radius: 10px;
-            padding: 14px 18px;
-            margin-bottom: 18px;
-            text-align: left;
+            background: #fff8e1; border: 1px solid #f6c90e;
+            border-radius: 10px; padding: 14px 18px; margin-bottom: 18px; text-align: left;
         }
-        .payment-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            padding: 5px 0;
-            font-size: 0.9rem;
-            gap: 12px;
+        .payment-row { display: flex; justify-content: space-between; align-items: flex-start; padding: 5px 0; font-size: 0.9rem; gap: 12px; }
+        .payment-row + .payment-row { border-top: 1px dashed #f6d860; margin-top: 6px; padding-top: 10px; }
+        .payment-label { color: #92700a; font-weight: 600; white-space: nowrap; }
+        .payment-value { color: #1a202c; text-align: right; line-height: 1.6; }
+        .btn-email-apply {
+            width: 100%; padding: 14px; border-radius: 10px; font-size: 1rem;
+            font-weight: 700; cursor: pointer; border: none;
+            background: var(--primary-color, #364d79); color: #fff;
+            transition: all 0.2s; margin-bottom: 10px;
         }
-        .payment-row + .payment-row {
-            border-top: 1px dashed #f6d860;
-            margin-top: 6px;
-            padding-top: 10px;
-        }
-        .payment-label {
-            color: #92700a;
-            font-weight: 600;
-            white-space: nowrap;
-        }
-        .payment-value {
-            color: #1a202c;
-            text-align: right;
-            line-height: 1.6;
-        }
+        .btn-email-apply:hover { background: #2a3d61; transform: translateY(-1px); }
+        .upgrade-notice { font-size: 0.78rem; color: #a0aec0; margin-top: 14px; line-height: 1.6; }
+        .btn-close-text { margin-top: 14px; background: none; border: none; color: #a0aec0; cursor: pointer; font-size: 0.85rem; }
+        .btn-close-text:hover { color: #718096; }
+
+        /* ── 자동 로그아웃 모달 ── */
+        #auto-logout-modal .modal-content h3 { color: #e53e3e; }
     </style>
 </head>
 <body class="premium-body">
 
     <main class="container">
 
-        <!-- ── 상단 상태 바 ── -->
+        <!-- 상단 상태 바 -->
         <div class="user-status-bar">
             <div class="user-info">
-                <span class="user-name"  id="display-name">로딩 중...</span>
+                <span class="user-name" id="display-name">로딩 중...</span>
                 <span class="badge" id="display-status">FREE</span>
                 <button id="btn-admin-menu" class="btn-admin-outline"
-                        style="display:none; margin-left:10px;"
-                        onclick="toggleAdminPanel()">📊 통계 대시보드</button>
+                        style="display:none; margin-left:10px;" onclick="toggleAdminPanel()">📊 통계 대시보드</button>
             </div>
             <div style="display:flex; align-items:center; gap:10px;">
                 <!-- free 유저에게만 표시 -->
-                <button id="btn-upgrade" class="btn-upgrade"
-                        style="display:none;"
-                        onclick="showUpgradeModal()">⭐ 프리미엄 신청</button>
+                <button id="btn-upgrade" class="btn-upgrade" style="display:none;" onclick="showUpgradeModal()">
+                    ⭐ 프리미엄 신청
+                </button>
                 <button class="btn-logout" onclick="handleLogout()">로그아웃</button>
             </div>
         </div>
 
-        <!-- ── 타이틀 ── -->
+        <!-- 타이틀 -->
         <header class="premium-header">
             <h1 class="premium-title">임상심리사 퀴즈</h1>
         </header>
 
-        <!-- ── 필터 바 ── -->
+        <!-- 필터 바 -->
         <div class="filter-bar">
             <div class="filter-group">
                 <select id="sel-grade" onchange="updateSubjects()">
@@ -194,40 +128,26 @@
             </button>
         </div>
 
-        <!-- ── 문제 영역 ── -->
+        <!-- 문제 영역 -->
         <div id="question-area">
             <div class="card empty-state">
                 <p>상단 필터를 선택하고 <strong>랜덤 출제</strong> 버튼을 눌러주세요.</p>
             </div>
         </div>
 
-        <!-- ── 관리자 패널 ── -->
-        <div id="admin-panel" class="admin-panel-card"
-             style="display:none; margin-top:30px; border:1px solid #e2e8f0;">
+        <!-- 관리자 패널 -->
+        <div id="admin-panel" class="admin-panel-card" style="display:none; margin-top:30px; border:1px solid #e2e8f0;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
                 <h3 style="margin:0; color:#1a202c; font-size:1.25rem;">📊 시스템 관리 대시보드</h3>
-                <button onclick="toggleAdminPanel()"
-                        style="background:none; border:none; cursor:pointer; font-size:1.5rem; color:#a0aec0;">✕</button>
+                <button onclick="toggleAdminPanel()" style="background:none; border:none; cursor:pointer; font-size:1.5rem; color:#a0aec0;">✕</button>
             </div>
             <div class="admin-stats-grid">
-                <div class="stat-card">
-                    <span class="stat-label">전체 문제 수</span>
-                    <span id="stat-total-questions" class="stat-value">-</span>
-                </div>
-                <div class="stat-card">
-                    <span class="stat-label">활성 사용자</span>
-                    <span id="stat-today-users" class="stat-value">-</span>
-                </div>
-                <div class="stat-card">
-                    <span class="stat-label">프리미엄 비율</span>
-                    <span id="stat-premium-rate" class="stat-value">-%</span>
-                </div>
+                <div class="stat-card"><span class="stat-label">전체 문제 수</span><span id="stat-total-questions" class="stat-value">-</span></div>
+                <div class="stat-card"><span class="stat-label">활성 사용자</span><span id="stat-today-users" class="stat-value">-</span></div>
+                <div class="stat-card"><span class="stat-label">프리미엄 비율</span><span id="stat-premium-rate" class="stat-value">-%</span></div>
             </div>
-            <div class="admin-user-management"
-                 style="margin-top:30px; border-top:1px solid #edf2f7; padding-top:25px;">
-                <h4 style="color:#4a5568; margin-bottom:15px; display:flex; align-items:center; gap:8px;">
-                    👥 회원 권한 관리
-                </h4>
+            <div class="admin-user-management" style="margin-top:30px; border-top:1px solid #edf2f7; padding-top:25px;">
+                <h4 style="color:#4a5568; margin-bottom:15px;">👥 회원 권한 관리</h4>
                 <div style="overflow-x:auto; background:white; border-radius:8px; border:1px solid #f1f5f9;">
                     <table class="user-table" style="width:100%; border-collapse:collapse;">
                         <thead>
@@ -239,41 +159,29 @@
                             </tr>
                         </thead>
                         <tbody id="user-list-body">
-                            <tr>
-                                <td colspan="4"
-                                    style="text-align:center; padding:30px; color:#a0aec0;">
-                                    데이터를 불러오는 중...
-                                </td>
-                            </tr>
+                            <tr><td colspan="4" style="text-align:center; padding:30px; color:#a0aec0;">데이터를 불러오는 중...</td></tr>
                         </tbody>
                     </table>
                 </div>
             </div>
             <div style="margin-top:20px; text-align:right;">
-                <button class="btn-refresh-stats"
-                        onclick="refreshAdminDashboard()"
-                        style="padding:8px 16px; font-size:0.85rem;">🔄 데이터 새로고침</button>
+                <button class="btn-refresh-stats" onclick="refreshAdminDashboard()" style="padding:8px 16px; font-size:0.85rem;">🔄 데이터 새로고침</button>
             </div>
         </div>
-
     </main>
 
-    <!-- ── 자동 로그아웃 경고 모달 ── -->
+    <!-- 자동 로그아웃 경고 모달 -->
     <div id="auto-logout-modal" class="modal-overlay" style="display:none;">
         <div class="modal-content">
             <h3 style="color:#e53e3e;">⏰ 자동 로그아웃 예정</h3>
-            <p>
-                장시간 활동이 없어<br>
-                <strong><span id="auto-logout-count">120</span>초</strong> 후 자동으로 로그아웃됩니다.
-            </p>
+            <p>장시간 활동이 없어<br><strong><span id="auto-logout-count">120</span>초</strong> 후 자동으로 로그아웃됩니다.</p>
             <div class="modal-buttons">
-                <button onclick="extendSession()" class="btn-modal-confirm"
-                        style="background:#364d79;">계속 학습하기</button>
+                <button onclick="extendSession()" class="btn-modal-confirm" style="background:#364d79;">계속 학습하기</button>
             </div>
         </div>
     </div>
 
-    <!-- ── 공통 확인 모달 ── -->
+    <!-- 공통 확인 모달 -->
     <div id="custom-modal" class="modal-overlay" style="display:none;">
         <div class="modal-content">
             <h3 id="modal-title">알림</h3>
@@ -286,9 +194,8 @@
         </div>
     </div>
 
-    <!-- ── 프리미엄 업그레이드 안내 모달 ── -->
-    <div id="upgrade-modal" class="modal-overlay" style="display:none;"
-         onclick="closeUpgradeModal(event)">
+    <!-- 프리미엄 업그레이드 안내 모달 -->
+    <div id="upgrade-modal" class="modal-overlay" style="display:none;" onclick="closeUpgradeModal(event)">
         <div class="modal-content" style="width:400px; padding:35px 30px;">
             <!-- premium-info.json에서 fetch해 동적으로 채워짐 -->
             <div id="upgrade-modal-body" style="text-align:center; padding:20px; color:#a0aec0;">
@@ -325,33 +232,30 @@
             if (!yearSelect) return;
             try {
                 const response = await fetch('/api/years');
-                const years    = await response.json();
+                if (!response.ok) throw new Error('years API 오류');
+                const years = await response.json();
                 yearSelect.innerHTML = '<option value="">연도 전체</option>';
-                if (years && years.length > 0) {
-                    years.forEach(year => {
-                        const opt = document.createElement('option');
-                        opt.value = year; opt.text = year + '년';
-                        yearSelect.add(opt);
-                    });
-                }
-            } catch (e) { console.error('연도 로드 실패', e); }
+                years.forEach(year => {
+                    const opt = document.createElement('option');
+                    opt.value = year; opt.text = year + '년';
+                    yearSelect.add(opt);
+                });
+            } catch (e) { console.error('연도 로드 실패:', e); }
         }
 
         /* ── 초기화 ── */
         document.addEventListener('DOMContentLoaded', () => {
-            // 세션 체크 — 비로그인 차단
             const user = JSON.parse(sessionStorage.getItem('quiz_user'));
             if (!user || !user.email) {
                 location.href = 'index.html';
                 return;
             }
 
-            // free 유저에게만 업그레이드 버튼 노출
+            // free 유저: 업그레이드 버튼 표시 + 문제 수 고정
             if (user.status === 'free') {
                 const upgradeBtn = document.getElementById('btn-upgrade');
                 if (upgradeBtn) upgradeBtn.style.display = 'inline-block';
 
-                // 문제 수 선택 목록을 20문제로 고정
                 const limitSelect = document.getElementById('sel-limit');
                 if (limitSelect) {
                     limitSelect.innerHTML = '<option value="20">20문제</option>';
@@ -366,9 +270,8 @@
         /* ── 프리미엄 정보 캐시 ── */
         let _premiumInfo = null;
 
-        /* ── premium-info.json fetch ── */
         async function fetchPremiumInfo() {
-            if (_premiumInfo) return _premiumInfo;  // 캐시 활용
+            if (_premiumInfo) return _premiumInfo;
             try {
                 const res = await fetch('/premium-info.json');
                 if (!res.ok) throw new Error('파일 로드 실패');
@@ -390,23 +293,18 @@
                 return;
             }
 
-            // 혜택 목록 생성 (마지막 항목은 회색 처리)
             const benefitItems = info.benefits.map((b, i) =>
                 i === info.benefits.length - 1
                     ? `<li style="color:#a0aec0;">${b}</li>`
                     : `<li>${b}</li>`
             ).join('');
 
-            // 줄바꿈 문자 → <br> 변환
-            const subtitle = (info.subtitle || '').replace(/
-/g, '<br>');
+            const subtitle = (info.subtitle || '').replace(/\n/g, '<br>');
 
             body.innerHTML = `
                 <div class="upgrade-icon">⭐</div>
                 <div class="upgrade-title">${info.title}</div>
                 <p class="upgrade-sub">${subtitle}</p>
-
-                <!-- 가격 및 계좌 정보 -->
                 <div class="upgrade-payment-info">
                     <div class="payment-row">
                         <span class="payment-label">${info.price.label}</span>
@@ -416,49 +314,42 @@
                         <span class="payment-label">${info.bank.label}</span>
                         <span class="payment-value">
                             ${info.bank.bank_name}<br>
-                            <strong>${info.bank.account_number}</strong>
-                            (${info.bank.account_holder})
+                            <strong>${info.bank.account_number}</strong> (${info.bank.account_holder})
                         </span>
                     </div>
                 </div>
-
                 <ul class="upgrade-benefits">${benefitItems}</ul>
-
                 <button class="btn-email-apply" onclick="sendUpgradeEmail()">
                     📧 이메일로 프리미엄 신청하기
                 </button>
-
                 <p class="upgrade-notice">
                     ${info.notice}<br>
                     문의: <strong>${info.admin_email}</strong>
                 </p>
-
                 <button class="btn-close-text" onclick="closeUpgradeModal()">✕ 닫기</button>
             `;
         }
 
-        /* ── 업그레이드 모달 열기 ── */
+        /* ── 업그레이드 모달 열기/닫기 ── */
         window.showUpgradeModal = async function () {
             document.getElementById('upgrade-modal').style.display = 'flex';
             await renderUpgradeModal();
         };
 
-        /* ── 업그레이드 모달 닫기 ── */
         window.closeUpgradeModal = function (e) {
             if (!e || e.target === document.getElementById('upgrade-modal')) {
                 document.getElementById('upgrade-modal').style.display = 'none';
             }
         };
 
-        /* ── 이메일 신청 — JSON의 admin_email 사용 ── */
+        /* ── 이메일 신청 ── */
         window.sendUpgradeEmail = async function () {
-            const info = await fetchPremiumInfo();
+            const info        = await fetchPremiumInfo();
             const ADMIN_EMAIL = info?.admin_email || 'admin@example.com';
-
-            const _u        = JSON.parse(sessionStorage.getItem('quiz_user') || '{}');
-            const userEmail = _u.email || '';
-            const subject   = encodeURIComponent('[프리미엄 신청] 임상심리사 퀴즈 뱅크');
-            const body      = encodeURIComponent(
+            const _u          = JSON.parse(sessionStorage.getItem('quiz_user') || '{}');
+            const userEmail   = _u.email || '';
+            const subject     = encodeURIComponent('[프리미엄 신청] 임상심리사 퀴즈 뱅크');
+            const body        = encodeURIComponent(
                 '안녕하세요, 프리미엄 멤버십을 신청합니다.\n\n' +
                 '· 신청 계정: ' + userEmail + '\n' +
                 '· 신청 일자: ' + new Date().toLocaleDateString('ko-KR') + '\n' +
@@ -467,7 +358,6 @@
                                   (info?.bank?.account_number || '') + '\n\n' +
                 '확인 후 빠른 처리 부탁드립니다.\n감사합니다.'
             );
-
             window.location.href = `mailto:${ADMIN_EMAIL}?subject=${subject}&body=${body}`;
         };
     </script>
