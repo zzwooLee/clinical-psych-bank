@@ -68,7 +68,7 @@ export default async function handler(req, res) {
     const userEmail   = actionData.userEmail;
     const userName    = actionData.userName;
     const responseUrl = payload && payload.response_url;
-    const adminEmail  = process.env.ADMIN_EMAIL || 'bee@lumoslab.kr';
+    const adminEmail  = process.env.ADMIN_EMAIL;
     const serviceName = '임상심리사 퀴즈 뱅크';
 
     console.log('처리 시작:', actionId, userEmail);
