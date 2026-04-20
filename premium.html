@@ -273,7 +273,7 @@
         async function fetchPremiumInfo() {
             if (_premiumInfo) return _premiumInfo;
             try {
-                const res = await fetch('/premium-info.json');
+                const res = await fetch('/api/premium-info');
                 if (!res.ok) throw new Error('파일 로드 실패');
                 _premiumInfo = await res.json();
                 return _premiumInfo;
@@ -342,23 +342,39 @@
             }
         };
 
-        /* ── 이메일 신청 ── */
+        /* ── 이메일 신청 — 서버 API로 자동 발송 ── */
         window.sendUpgradeEmail = async function () {
-            const info        = await fetchPremiumInfo();
-            const ADMIN_EMAIL = info?.admin_email || 'admin@example.com';
-            const _u          = JSON.parse(sessionStorage.getItem('quiz_user') || '{}');
-            const userEmail   = _u.email || '';
-            const subject     = encodeURIComponent('[프리미엄 신청] 임상심리사 퀴즈 뱅크');
-            const body        = encodeURIComponent(
-                '안녕하세요, 프리미엄 멤버십을 신청합니다.\n\n' +
-                '· 신청 계정: ' + userEmail + '\n' +
-                '· 신청 일자: ' + new Date().toLocaleDateString('ko-KR') + '\n' +
-                '· 입금 금액: ' + (info?.price?.amount || '') + '\n' +
-                '· 입금 계좌: ' + (info?.bank?.bank_name || '') + ' ' +
-                                  (info?.bank?.account_number || '') + '\n\n' +
-                '확인 후 빠른 처리 부탁드립니다.\n감사합니다.'
-            );
-            window.location.href = `mailto:${ADMIN_EMAIL}?subject=${subject}&body=${body}`;
+            const btn = document.querySelector('.btn-email-apply');
+            if (btn) { btn.disabled = true; btn.textContent = '발송 중...'; }
+
+            const _u        = JSON.parse(sessionStorage.getItem('quiz_user') || '{}');
+            const userEmail = _u.email || '';
+            const userName  = _u.name  || '';
+
+            try {
+                const res  = await fetch('/api/send-mail', {
+                    method : 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body   : JSON.stringify({ userEmail, userName })
+                });
+                const data = await res.json();
+
+                if (!res.ok) throw new Error(data.message);
+
+                // 성공 시 모달 내용을 완료 메시지로 교체
+                document.getElementById('upgrade-modal-body').innerHTML = `
+                    <div class="upgrade-icon">✅</div>
+                    <div class="upgrade-title">신청 완료!</div>
+                    <p class="upgrade-sub">
+                        신청 메일이 발송되었습니다.<br>
+                        입금 확인 후 1 영업일 이내 활성화됩니다.
+                    </p>
+                    <button class="btn-close-text" onclick="closeUpgradeModal()" style="margin-top:10px;">닫기</button>
+                `;
+            } catch (e) {
+                alert('메일 발송 실패: ' + e.message);
+                if (btn) { btn.disabled = false; btn.textContent = '📧 이메일로 프리미엄 신청하기'; }
+            }
         };
     </script>
 </body>
