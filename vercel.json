@@ -1,48 +1,24 @@
 {
   "rewrites": [
     {
-      "source": "/api/login",
-      "destination": "/login.js"
-    },
-    {
-      "source": "/api/signup",
-      "destination": "/signup.js"
-    },
-    {
-      "source": "/api/questions",
-      "destination": "/questions.js"
-    },
-    {
-      "source": "/api/years",
-      "destination": "/years.js"
-    },
-    {
       "source": "/api/admin/stats",
-      "destination": "/stats.js"
+      "destination": "/api/stats.js"
     },
     {
       "source": "/api/admin/users",
-      "destination": "/users.js"
+      "destination": "/api/users.js"
     },
     {
       "source": "/api/admin/update-user",
-      "destination": "/update-user.js"
+      "destination": "/api/update-user.js"
     },
     {
       "source": "/api/admin/delete-user",
-      "destination": "/delete-user.js"
+      "destination": "/api/delete-user.js"
     },
     {
-      "source": "/api/ai-gen",
-      "destination": "/ai-gen.js"
-    },
-    {
-      "source": "/api/send-mail",
-      "destination": "/send-mail.js"
-    },
-    {
-      "source": "/api/premium-info",
-      "destination": "/premium-info-api.js"
+      "source": "/api/slack-action",
+      "destination": "/api/slack-action.js"
     }
   ]
 }
