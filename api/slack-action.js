@@ -1,3 +1,5 @@
+// api/slack-action.js
+
 import { createClient } from '@supabase/supabase-js';
 import nodemailer       from 'nodemailer';
 
@@ -36,7 +38,11 @@ async function sendEmail({ to, subject, html }) {
       port  : smtpPort,
       secure: smtpPort === 465,
       auth  : { user: smtpUser, pass: smtpPass },
-      tls   : { rejectUnauthorized: false }  // 인증서 오류 방지
+      tls   : {
+        rejectUnauthorized: false,  // 인증서 오류 방지
+        minVersion        : 'TLSv1',  // 구형 서버 호환
+        ciphers           : 'ALL',    // DH 키 크기 제한 해제
+      }
     });
 
     // SMTP 연결 테스트
