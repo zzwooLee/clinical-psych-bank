@@ -1,13 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
 
-// 일반 클라이언트 — DB 읽기/쓰기용 (Service Role Key)
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_KEY
 );
 
-// Admin 클라이언트 — auth.admin.deleteUser() 전용
-// auth.admin 메서드는 createClient에 auth.persistSession:false 옵션이 필요
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_KEY,
@@ -36,7 +33,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    // 1. Supabase Auth 계정 생성
+    // ── 1. Auth 계정 생성 ──
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,
@@ -44,37 +41,31 @@ export default async function handler(req, res) {
 
     if (authError) throw authError;
 
-    // 중복 이메일 체크 (Supabase는 중복 시 에러 대신 빈 identities 반환)
+    // 중복 이메일 체크
     if (authData.user?.identities?.length === 0) {
       return res.status(400).json({ message: '이미 가입된 이메일입니다.' });
     }
 
-    // 2. users 테이블에 insert
-    if (authData.user) {
-      const { error: dbError } = await supabase
-        .from('users')
-        .insert([{
-          id         : authData.user.id,
-          email      : email,
-          name       : name.trim(),
-          user_status: 'free'
-        }]);
+    const userId = authData.user?.id;
+    if (!userId) throw new Error('Auth 계정 생성에 실패했습니다.');
 
-      if (dbError) {
-        console.error('DB Insert Error:', dbError.code, dbError.message);
+    // ── 2. upsert — insert 또는 이미 있으면 name/status 업데이트 ──
+    // insert 대신 upsert를 사용해 중복 PK 오류를 원천 차단
+    const { error: dbError } = await supabase
+      .from('users')
+      .upsert([{
+        id         : userId,
+        email      : email,
+        name       : name.trim(),
+        user_status: 'free'
+      }], { onConflict: 'id' });  // id 충돌 시 덮어쓰기
 
-        // Auth 계정 롤백 — Admin 클라이언트로 호출해야 정상 동작
-        const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(
-          authData.user.id
-        );
-        if (deleteError) {
-          console.error('Auth rollback failed:', deleteError.message);
-        }
-
-        return res.status(500).json({
-          message: `회원 정보 저장 실패: ${dbError.message}`
-        });
-      }
+    if (dbError) {
+      console.error('DB Upsert Error:', dbError.code, dbError.message);
+      await supabaseAdmin.auth.admin.deleteUser(userId).catch(() => {});
+      return res.status(500).json({
+        message: `회원 정보 저장 실패: ${dbError.message}`
+      });
     }
 
     const message = authData.session
