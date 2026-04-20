@@ -204,6 +204,7 @@
         </div>
     </div>
 
+    <script src="premium-info.js"></script>
     <script src="common.js" defer></script>
     <script>
         /* ── 과목 데이터 ── */
@@ -267,20 +268,14 @@
             updateSubjects();
         });
 
-        /* ── 프리미엄 정보 fetch (premium-info.js → api/premium-info) ── */
-        let _premiumInfo = null;
-
+        /* ── 프리미엄 정보 로드 (premium-info.js에서 직접 참조) ── */
         async function fetchPremiumInfo() {
-            if (_premiumInfo) return _premiumInfo;
-            try {
-                const res = await fetch('/api/premium-info');
-                if (!res.ok) throw new Error('로드 실패 ' + res.status);
-                _premiumInfo = await res.json();
-                return _premiumInfo;
-            } catch (e) {
-                console.error('fetchPremiumInfo 오류:', e);
+            // premium-info.js가 <script src>로 로드되어 PREMIUM_INFO 전역 변수 사용
+            if (typeof PREMIUM_INFO === 'undefined') {
+                console.error('PREMIUM_INFO가 정의되지 않았습니다. premium-info.js를 확인하세요.');
                 return null;
             }
+            return PREMIUM_INFO;
         }
 
         /* ── 모달 내용 렌더링 ── */
