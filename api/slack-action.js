@@ -1,65 +1,38 @@
-// api/slack-action.js
-
 import { createClient } from '@supabase/supabase-js';
-import nodemailer       from 'nodemailer';
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_KEY
 );
 
-// ── SMTP 메일 발송 함수 ──
+// ── Resend 메일 발송 함수 (fetch만 사용, 외부 패키지 불필요) ──
 async function sendEmail({ to, subject, html }) {
-  const smtpHost = process.env.SMTP_HOST;
-  const smtpPort = parseInt(process.env.SMTP_PORT || '465');
-  const smtpUser = process.env.SMTP_USER;
-  const smtpPass = process.env.SMTP_PASSWORD;
+  const resendKey = process.env.RESEND_API_KEY;
+  const fromEmail = process.env.MAIL_FROM || 'onboarding@resend.dev';
 
-  // 환경변수 로그 (비밀번호 제외)
-  console.log('SMTP 설정:', {
-    host  : smtpHost,
-    port  : smtpPort,
-    user  : smtpUser,
-    secure: smtpPort === 465
-  });
-
-  if (!smtpHost || !smtpUser || !smtpPass) {
-    const missing = [];
-    if (!smtpHost) missing.push('SMTP_HOST');
-    if (!smtpUser) missing.push('SMTP_USER');
-    if (!smtpPass) missing.push('SMTP_PASSWORD');
-    console.error('SMTP 환경변수 누락:', missing.join(', '));
+  if (!resendKey) {
+    console.error('RESEND_API_KEY 환경변수 누락');
     return;
   }
 
   try {
-    const transporter = nodemailer.createTransport({
-      host  : smtpHost,
-      port  : smtpPort,
-      secure: false,        // 587 포트는 false (STARTTLS)
-      auth  : { user: smtpUser, pass: smtpPass },
-      tls   : {
-        rejectUnauthorized: false,
-        ciphers: 'HIGH:MEDIUM:!aNULL:!eNULL:!EXPORT:!DES:!RC4:!MD5:!PSK:!SRP:!CAMELLIA:!DHE'
-      }
+    const res  = await fetch('https://api.resend.com/emails', {
+      method : 'POST',
+      headers: {
+        'Content-Type' : 'application/json',
+        'Authorization': `Bearer ${resendKey}`
+      },
+      body: JSON.stringify({ from: fromEmail, to, subject, html })
     });
 
-    // SMTP 연결 테스트
-    await transporter.verify();
-    console.log('SMTP 연결 성공');
-
-    const info = await transporter.sendMail({
-      from   : `임상심리사 퀴즈 뱅크 <${smtpUser}>`,
-      to,
-      subject,
-      html
-    });
-
-    console.log('메일 발송 성공:', info.messageId, '→', to);
-
+    const data = await res.json();
+    if (!res.ok) {
+      console.error('Resend 오류:', data);
+    } else {
+      console.log('메일 발송 성공:', data.id, '→', to);
+    }
   } catch (e) {
-    console.error('SMTP 오류:', e.message);
-    console.error('SMTP 오류 상세:', e.code, e.response);
+    console.error('메일 발송 오류:', e.message);
   }
 }
 
