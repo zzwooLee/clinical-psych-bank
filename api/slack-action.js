@@ -36,12 +36,11 @@ async function sendEmail({ to, subject, html }) {
     const transporter = nodemailer.createTransport({
       host  : smtpHost,
       port  : smtpPort,
-      secure: smtpPort === 465,
+      secure: false,        // 587 포트는 false (STARTTLS)
       auth  : { user: smtpUser, pass: smtpPass },
       tls   : {
-        rejectUnauthorized: false,  // 인증서 오류 방지
-        minVersion        : 'TLSv1',  // 구형 서버 호환
-        ciphers           : 'ALL',    // DH 키 크기 제한 해제
+        rejectUnauthorized: false,
+        ciphers: 'HIGH:MEDIUM:!aNULL:!eNULL:!EXPORT:!DES:!RC4:!MD5:!PSK:!SRP:!CAMELLIA:!DHE'
       }
     });
 
