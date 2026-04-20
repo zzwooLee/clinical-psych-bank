@@ -1,5 +1,5 @@
-// 가격·혜택 등 공개 정보만 포함 (계좌·이메일 등 민감 정보는 Vercel 환경변수에서 관리)
-// 내용 수정 시 이 파일만 변경 후 재배포하면 됩니다.
+// 가격·혜택 수정 시 이 파일만 변경하면 됩니다.
+// 계좌번호·이메일 등 민감 정보는 Vercel 환경변수에서 관리합니다.
 
 const PREMIUM_INFO = {
     title   : '프리미엄 멤버십',
@@ -7,9 +7,6 @@ const PREMIUM_INFO = {
     price: {
         label : '이용 요금',
         amount: '월 9,900원'
-    },
-    bank: {
-        label: '입금 계좌'   // 계좌번호·예금주는 Vercel 환경변수(BANK_*)에서 관리
     },
     benefits: [
         '✅ 1급·2급 전체 기출문제 무제한 열람',
@@ -20,5 +17,3 @@ const PREMIUM_INFO = {
     ],
     notice: '신청 후 관리자 확인 시 즉시 활성화됩니다.'
 };
-
-export default PREMIUM_INFO;
