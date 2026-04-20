@@ -6,7 +6,7 @@ const PREMIUM_INFO = {
     subtitle: '더 많은 문제와 심층 해설로<br>합격을 앞당기세요.',
     price: {
         label : '이용 요금',
-        amount: '월 9,900원'
+        amount: '월 10,000원'
     },
     benefits: [
         '✅ 1급·2급 전체 기출문제 무제한 열람',
