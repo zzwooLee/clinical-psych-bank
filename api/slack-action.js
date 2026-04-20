@@ -1,3 +1,5 @@
+// api/slack-action.js
+
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
@@ -8,7 +10,7 @@ const supabase = createClient(
 // ── Resend 메일 발송 함수 (fetch만 사용, 외부 패키지 불필요) ──
 async function sendEmail({ to, subject, html }) {
   const resendKey = process.env.RESEND_API_KEY;
-  const fromEmail = process.env.MAIL_FROM;
+  const fromEmail = process.env.MAIL_FROM || 'onboarding@resend.dev';
 
   if (!resendKey) {
     console.error('RESEND_API_KEY 환경변수 누락');
@@ -64,7 +66,7 @@ export default async function handler(req, res) {
     const actionData  = JSON.parse(action?.value || '{}');
     const { userId, userEmail, userName } = actionData;
     const responseUrl = payload?.response_url;
-    const adminEmail  = process.env.SMTP_USER;
+    const adminEmail  = process.env.ADMIN_EMAIL';
     const serviceName = '임상심리사 퀴즈 뱅크';
 
     console.log('처리 시작:', { actionId, userEmail, userName });
