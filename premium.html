@@ -267,36 +267,31 @@
             updateSubjects();
         });
 
-        /* ── 프리미엄 공개 정보 (가격·혜택 수정 시 여기만 변경) ── */
-        const PREMIUM_INFO = {
-            title   : '프리미엄 멤버십',
-            subtitle: '더 많은 문제와 심층 해설로<br>합격을 앞당기세요.',
-            price: {
-                label : '이용 요금',
-                amount: '월 9,900원'
-            },
-            bank: {
-                label: '입금 계좌'
-                // 계좌번호·예금주는 Slack 알림으로 관리자에게만 전달됨
-            },
-            benefits: [
-                '✅ 1급·2급 전체 기출문제 무제한 열람',
-                '✅ AI 생성 예상 문제 제공',
-                '✅ 연도·과목별 상세 필터링',
-                '✅ 문제당 전문 해설 제공',
-                '🚫 무료: 최대 20문제 / 일반 문제만'
-            ],
-            notice: '신청 후 관리자 확인 시 즉시 활성화됩니다.'
-        };
+        /* ── 프리미엄 정보 fetch (premium-info.js → api/premium-info) ── */
+        let _premiumInfo = null;
 
         async function fetchPremiumInfo() {
-            return PREMIUM_INFO;  // API 호출 없이 로컬 데이터 반환
+            if (_premiumInfo) return _premiumInfo;
+            try {
+                const res = await fetch('/api/premium-info');
+                if (!res.ok) throw new Error('로드 실패 ' + res.status);
+                _premiumInfo = await res.json();
+                return _premiumInfo;
+            } catch (e) {
+                console.error('fetchPremiumInfo 오류:', e);
+                return null;
+            }
         }
 
         /* ── 모달 내용 렌더링 ── */
         async function renderUpgradeModal() {
             const body = document.getElementById('upgrade-modal-body');
             const info = await fetchPremiumInfo();
+
+            if (!info) {
+                body.innerHTML = '<p style="color:#e53e3e;">안내 정보를 불러오지 못했습니다.<br>잠시 후 다시 시도해주세요.</p>';
+                return;
+            }
 
             const benefitItems = info.benefits.map((b, i) =>
                 i === info.benefits.length - 1
