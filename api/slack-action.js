@@ -63,7 +63,7 @@ export default async function handler(req, res) {
           user_status: 'premium',
           expiry_date: expiry.toISOString()
         })
-        .eq('id', userId);
+        .eq('email', userEmail);
 
       if (error) {
         console.error('DB 업데이트 실패:', error.message);
