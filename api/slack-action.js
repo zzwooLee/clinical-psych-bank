@@ -129,7 +129,7 @@ export default async function handler(req, res) {
             type: 'section',
             text: {
               type: 'mrkdwn',
-              text: '*승인 완료*\n*' + (userName || userEmail) + '* (' + userEmail + ') 님이 Premium으로 변경되었습니다.\n만료일: ' + expiryStr + '\n메일 발송 완료'
+              text: '*Premium 승인 완료*\n' + (userName || userEmail) + '(' + userEmail + ')\n만료일: ' + expiryStr
             }
           }]
         })
