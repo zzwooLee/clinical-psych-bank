@@ -1,5 +1,13 @@
-// 민감 정보는 모두 Vercel 환경변수에서 읽음
-// 공개 정보(가격)는 환경변수 PRICE_AMOUNT에서 읽음
+// api/send-mail.js
+// Slack 알림 메시지에 [✅ 승인] [❌ 거절] 버튼 포함
+// Incoming Webhook 대신 Slack API chat.postMessage 사용 (버튼 응답을 위해 필요)
+
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_KEY
+);
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -11,21 +19,32 @@ export default async function handler(req, res) {
     return res.status(400).json({ message: '사용자 이메일이 없습니다.' });
   }
 
-  // ── 환경변수에서 읽기 ──
-  const webhookUrl  = process.env.SLACK_WEBHOOK_URL;
+  const slackToken  = process.env.SLACK_BOT_TOKEN;   // Bot Token (xoxb-...)
+  const slackChannel = process.env.SLACK_CHANNEL_ID; // 채널 ID (C0XXXXXXX)
+  const priceAmount = process.env.PRICE_AMOUNT || '';
   const bankName    = process.env.BANK_NAME    || '';
   const bankAccount = process.env.BANK_ACCOUNT || '';
   const bankHolder  = process.env.BANK_HOLDER  || '';
-  const priceAmount = process.env.PRICE_AMOUNT || '';
 
-  if (!webhookUrl) {
-    return res.status(500).json({ message: 'SLACK_WEBHOOK_URL 환경변수가 설정되지 않았습니다.' });
+  if (!slackToken || !slackChannel) {
+    return res.status(500).json({ message: 'Slack 환경변수가 설정되지 않았습니다.' });
   }
 
-  const today = new Date().toLocaleDateString('ko-KR');
+  // Supabase에서 userEmail로 userId 조회
+  const { data: userRows } = await supabase
+    .from('users')
+    .select('id')
+    .eq('email', userEmail)
+    .limit(1);
 
-  // ── Slack 메시지 구성 ──
+  const userId = userRows?.[0]?.id || '';
+  const today  = new Date().toLocaleDateString('ko-KR');
+
+  // 승인 버튼의 value에 userId와 userEmail을 담아 slack-action에서 사용
+  const actionValue = JSON.stringify({ userId, userEmail, userName });
+
   const slackBody = {
+    channel: slackChannel,
     blocks: [
       {
         type: 'header',
@@ -49,30 +68,40 @@ export default async function handler(req, res) {
       },
       { type: 'divider' },
       {
-        type: 'context',
-        elements: [{
-          type: 'mrkdwn',
-          text: '입금 확인 후 관리자 페이지에서 해당 계정을 *Premium* 으로 변경해주세요.'
-        }]
+        // 승인 / 거절 버튼
+        type: 'actions',
+        elements: [
+          {
+            type      : 'button',
+            text      : { type: 'plain_text', text: '✅ 승인', emoji: true },
+            style     : 'primary',
+            action_id : 'approve_premium',
+            value     : actionValue
+          },
+          {
+            type      : 'button',
+            text      : { type: 'plain_text', text: '❌ 거절', emoji: true },
+            style     : 'danger',
+            action_id : 'reject_premium',
+            value     : actionValue
+          }
+        ]
       }
     ]
   };
 
   try {
-    // ── Slack Webhook 호출 ──
-    // Slack은 성공 시 plain text "ok"를 반환 (JSON 아님)
-    const slackRes = await fetch(webhookUrl, {
+    const slackRes = await fetch('https://slack.com/api/chat.postMessage', {
       method : 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body   : JSON.stringify(slackBody)
+      headers: {
+        'Content-Type' : 'application/json',
+        'Authorization': `Bearer ${slackToken}`
+      },
+      body: JSON.stringify(slackBody)
     });
 
-    // .json() 대신 .text()로 응답 처리
-    const slackText = await slackRes.text();
-
-    if (!slackRes.ok || slackText !== 'ok') {
-      throw new Error(`Slack 오류: ${slackText}`);
-    }
+    const slackData = await slackRes.json();
+    if (!slackData.ok) throw new Error(`Slack 오류: ${slackData.error}`);
 
     res.status(200).json({ message: '신청이 완료되었습니다.' });
 
