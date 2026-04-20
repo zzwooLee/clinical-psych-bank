@@ -158,7 +158,7 @@ export default async function handler(req, res) {
             type: 'section',
             text: {
               type: 'mrkdwn',
-              text: '*거절됨*\n*' + (userName || userEmail) + '* (' + userEmail + ') 님의 신청이 거절되었습니다.\n메일 발송 완료'
+              text: '*신청 거절*: ' + (userName || userEmail) + '(' + userEmail + ')'
             }
           }]
         })
