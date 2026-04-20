@@ -1,0 +1,13 @@
+{
+  "rewrites": [
+    { "source": "/api/login",        "destination": "/login.js" },
+    { "source": "/api/signup",       "destination": "/signup.js" },
+    { "source": "/api/questions",    "destination": "/questions.js" },
+    { "source": "/api/years",        "destination": "/years.js" },
+    { "source": "/api/admin/stats",  "destination": "/stats.js" },
+    { "source": "/api/admin/users",  "destination": "/users.js" },
+    { "source": "/api/admin/update-user", "destination": "/update-user.js" },
+    { "source": "/api/admin/delete-user", "destination": "/delete-user.js" },
+    { "source": "/api/ai-gen",       "destination": "/ai-gen.js" }
+  ]
+}
