@@ -12,7 +12,8 @@ export default async function handler(req, res) {
   try {
     const { data, error } = await supabase
       .from('users')
-      .select('id, email, user_status, expiry_date')
+      // ★ [수정] name 컬럼 추가
+      .select('id, email, name, user_status, expiry_date')
       .order('email', { ascending: true });
 
     if (error) throw error;
