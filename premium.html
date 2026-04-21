@@ -152,14 +152,17 @@
                     <table class="user-table" style="width:100%; border-collapse:collapse;">
                         <thead>
                             <tr>
-                                <th style="text-align:left; padding:12px 15px;">이메일</th>
+                                <!-- ★ [수정] 이름 컬럼 추가 -->
+                                <th style="text-align:left; padding:12px 15px;">이름</th>
+                                <th style="text-align:left; padding:12px;">이메일</th>
                                 <th style="text-align:center; padding:12px;">현재 등급</th>
                                 <th style="text-align:center; padding:12px;">만료일</th>
                                 <th style="text-align:center; padding:12px;">관리</th>
                             </tr>
                         </thead>
                         <tbody id="user-list-body">
-                            <tr><td colspan="4" style="text-align:center; padding:30px; color:#a0aec0;">데이터를 불러오는 중...</td></tr>
+                            <!-- ★ [수정] colspan 4 → 5 -->
+                            <tr><td colspan="5" style="text-align:center; padding:30px; color:#a0aec0;">데이터를 불러오는 중...</td></tr>
                         </tbody>
                     </table>
                 </div>
