@@ -1,9 +1,5 @@
-/* api/questions.js */
-/* 적용: #4 free 유저에게 is_premium 필터 추가 */
-
 import { createClient } from '@supabase/supabase-js';
 
-// 원본 키 유지 (Service Role Key는 Vercel 환경변수 준비 후 별도 교체)
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
 export default async function handler(req, res) {
@@ -16,10 +12,23 @@ export default async function handler(req, res) {
     try {
         let query = supabase.from('questions').select('*');
 
-        // [#4 핵심 수정] free 등급은 is_premium = false 문제만 조회
-        // 원본에는 이 필터가 없어서 유료 문제가 그대로 노출되던 버그 수정
         if (userStatus === 'free') {
+            // ── FREE 유저 ──────────────────────────────────────
+            // · 2003~2013년 문제만 제공 (is_premium = false)
+            // · is_verified 무관 — 해설이 없으므로 검수 불필요
             query = query.eq('is_premium', false);
+
+        } else {
+            // ── PREMIUM / ADMIN 유저 ───────────────────────────
+            // · 전체 연도 문제 제공
+            // · ★ [추가] is_verified = true 인 문제만 노출
+            //   → n8n이 해설 생성 후 is_verified = false 로 저장
+            //   → 관리자가 검수 완료 후 is_verified = true 로 변경
+            //   → admin은 미검수 문제도 볼 수 있어야 관리 가능하므로 제외
+            if (userStatus === 'premium') {
+                query = query.eq('is_verified', true);
+            }
+            // admin은 is_verified 필터 없이 전체 조회 (관리 목적)
         }
 
         if (grade)    query = query.eq('grade', grade);
@@ -40,7 +49,14 @@ export default async function handler(req, res) {
         if (error) throw error;
 
         // 랜덤 셔플
-        const shuffled = data.sort(() => 0.5 - Math.random());
+        let shuffled = data.sort(() => 0.5 - Math.random());
+
+        // ★ free 유저는 서버에서 해설 필드 제거
+        //   클라이언트 응답에서도 노출되지 않도록 서버단 처리
+        if (userStatus === 'free') {
+            shuffled = shuffled.map(({ explanation, is_verified, ...rest }) => rest);
+        }
+
         res.status(200).json(shuffled);
     } catch (error) {
         res.status(500).json({ message: error.message });
