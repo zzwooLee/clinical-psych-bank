@@ -1,4 +1,3 @@
-// questions.js
 // [FIX 1] exam_date int4(YYYYMMDD) 컬럼 → 연도 필터를 정수 범위로 수정
 //          gte('exam_date', '2006-01-01') → gte('exam_date', 20060101)
 // [FIX 2] verifyUser 내부 오류가 500을 유발하지 않도록 try/catch 완전 방어
