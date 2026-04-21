@@ -63,10 +63,11 @@
     <main class="container main-auth-container">
         <section id="auth-container" class="auth-section">
 
-            <!-- ── 로그인 탭 ── -->
+            <!-- ── 로그인/회원가입 카드 ── -->
             <div id="guest-view" class="auth-card">
 
                 <!-- 탭 전환 버튼 -->
+                <!-- ★ [수정] 탭 버튼 2개 → 2개 유지 (reset은 탭 없이 링크로 진입) -->
                 <div class="auth-tabs">
                     <button id="tab-login"  class="auth-tab active" onclick="switchTab('login')">로그인</button>
                     <button id="tab-signup" class="auth-tab"        onclick="switchTab('signup')">회원가입</button>
@@ -85,12 +86,17 @@
                         </div>
                         <div class="input-wrapper">
                             <span class="icon">🔒</span>
-                            <input type="password" id="password" placeholder="비밀번호">
+                            <input type="password" id="password" placeholder="비밀번호"
+                                   onkeydown="if(event.key==='Enter') handleLogin()">
                         </div>
                     </div>
                     <div class="button-group">
                         <button class="btn-primary main-btn" onclick="handleLogin()">로그인</button>
                     </div>
+                    <!-- ★ [추가] 비밀번호 찾기 링크 -->
+                    <p style="text-align:center; margin-top:16px;">
+                        <button class="btn-forgot" onclick="switchTab('reset')">🔑 비밀번호를 잊으셨나요?</button>
+                    </p>
                 </div>
 
                 <!-- 회원가입 폼 -->
@@ -118,8 +124,33 @@
                     </div>
                 </div>
 
+                <!-- ★ [추가] 비밀번호 재설정 폼 -->
+                <div id="form-reset" style="display:none;">
+                    <div class="auth-header">
+                        <h2>비밀번호 재설정</h2>
+                        <p>가입하신 이메일로<br>재설정 링크를 보내드립니다.</p>
+                    </div>
+                    <div class="input-group">
+                        <div class="input-wrapper">
+                            <span class="icon">📧</span>
+                            <input type="email" id="reset-email" placeholder="가입한 이메일 주소"
+                                   onkeydown="if(event.key==='Enter') handleResetPassword()">
+                        </div>
+                    </div>
+                    <div class="button-group">
+                        <button class="btn-primary main-btn" onclick="handleResetPassword()">
+                            재설정 링크 발송
+                        </button>
+                        <button class="btn-outline main-btn" onclick="switchTab('login')"
+                                style="margin-top:10px;">
+                            ← 로그인으로 돌아가기
+                        </button>
+                    </div>
+                </div>
+
             </div>
 
+            <!-- 로그인 완료 후 뷰 -->
             <div id="user-view" class="auth-card" style="display: none;">
                 <div class="auth-header">
                     <h2>학습 준비 완료</h2>
@@ -166,12 +197,15 @@
 
     <script src="common.js" defer></script>
     <script>
+        // ★ [수정] reset 탭 지원 추가 — 탭 버튼 active 처리는 login/signup만
         function switchTab(tab) {
-            const isLogin = tab === 'login';
-            document.getElementById('form-login').style.display  = isLogin ? 'block' : 'none';
-            document.getElementById('form-signup').style.display = isLogin ? 'none'  : 'block';
-            document.getElementById('tab-login').classList.toggle('active',  isLogin);
-            document.getElementById('tab-signup').classList.toggle('active', !isLogin);
+            ['login', 'signup', 'reset'].forEach(t => {
+                document.getElementById('form-' + t).style.display = (tab === t) ? 'block' : 'none';
+            });
+            // reset 탭은 상단 탭 버튼이 없으므로 login/signup 버튼만 토글
+            document.getElementById('tab-login').classList.toggle('active',  tab === 'login');
+            document.getElementById('tab-signup').classList.toggle('active', tab === 'signup');
         }
     </script>
+</body>
 </html>
