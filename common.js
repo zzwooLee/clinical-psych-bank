@@ -278,8 +278,8 @@ window.handleLogout = function () {
 //   (민감한 Service Role Key와 다릅니다)
 // ★ 아래 두 상수를 본인 Supabase 프로젝트 값으로 반드시 교체하세요.
 //   Supabase 대시보드 → Project Settings → API 에서 확인
-const _SUPABASE_URL      = 'https://YOUR_PROJECT_ID.supabase.co'; // ← 교체 필요
-const _SUPABASE_ANON_KEY = 'YOUR_ANON_KEY';                        // ← 교체 필요
+const _SUPABASE_URL      = 'https://iszsnxeprdtznvpbmmax.supabase.co'; // ← 교체 필요
+const _SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzenNueGVwcmR0em52cGJtbWF4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU5NTkzOTIsImV4cCI6MjA5MTUzNTM5Mn0.Vcq7X54leFA7tEr1ADj6NQ48hBjCcYPf_kkiZHUeO9g';                        // ← 교체 필요
 
 window.handleResetPassword = async function () {
     const email = document.getElementById('reset-email')?.value.trim();
