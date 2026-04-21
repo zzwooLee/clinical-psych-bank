@@ -236,11 +236,17 @@
         }
 
         /* ── 연도 초기화 ── */
+        // ★ [수정] userStatus를 함께 전송 → 등급별 연도 목록 수신
         async function initYears() {
             const yearSelect = document.getElementById('sel-year');
             if (!yearSelect) return;
+            const user = JSON.parse(sessionStorage.getItem('quiz_user') || '{}');
             try {
-                const response = await fetch('/api/years');
+                const response = await fetch('/api/years', {
+                    method : 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body   : JSON.stringify({ userStatus: user.status || 'free' })
+                });
                 if (!response.ok) throw new Error('years API 오류');
                 const years = await response.json();
                 yearSelect.innerHTML = '<option value="">연도 전체</option>';
