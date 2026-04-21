@@ -1,6 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
 
-// [#6 수정] Service Role Key
 const supabase = createClient(
     process.env.SUPABASE_URL,
     process.env.SUPABASE_KEY
@@ -8,52 +7,107 @@ const supabase = createClient(
 
 /*
  * ──────────────────────────────────────────────────────────────────────────
- * [#9 선행 작업] Supabase SQL Editor에서 아래 뷰를 먼저 생성해주세요:
+ * ★ [수정] userStatus 기반으로 등급별 연도 목록 반환
  *
- *   CREATE OR REPLACE VIEW unique_years AS
- *   SELECT DISTINCT
- *       LEFT(CAST(exam_date AS TEXT), 4) AS year
+ *   FREE    → is_premium = false 문제의 연도만 (2003~2013)
+ *   PREMIUM → is_premium = true AND is_verified = true 문제의 연도만 (2014~2019)
+ *   ADMIN   → 전체 연도 (미검수 포함)
+ *
+ * Supabase SQL Editor에서 아래 뷰 2개를 미리 생성하면 성능이 향상됩니다:
+ *
+ *   -- FREE용 뷰
+ *   CREATE OR REPLACE VIEW unique_years_free AS
+ *   SELECT DISTINCT LEFT(CAST(exam_date AS TEXT), 4) AS year
  *   FROM questions
  *   WHERE exam_date IS NOT NULL
  *     AND LENGTH(CAST(exam_date AS TEXT)) >= 4
+ *     AND is_premium = false
  *   ORDER BY year DESC;
  *
- * 뷰 생성 후 이 API가 자동으로 최적화된 방식으로 동작합니다.
- * 뷰가 없을 경우 아래 코드는 폴백(fallback)으로 전체 데이터를 로드합니다.
+ *   -- PREMIUM용 뷰
+ *   CREATE OR REPLACE VIEW unique_years_premium AS
+ *   SELECT DISTINCT LEFT(CAST(exam_date AS TEXT), 4) AS year
+ *   FROM questions
+ *   WHERE exam_date IS NOT NULL
+ *     AND LENGTH(CAST(exam_date AS TEXT)) >= 4
+ *     AND is_premium = true
+ *     AND is_verified = true
+ *   ORDER BY year DESC;
+ *
+ *   -- ADMIN용 뷰 (기존 unique_years 그대로 사용)
  * ──────────────────────────────────────────────────────────────────────────
  */
 export default async function handler(req, res) {
-    try {
-        // [#9 최적화] unique_years 뷰 우선 시도
-        const { data: viewData, error: viewError } = await supabase
-            .from('unique_years')
-            .select('year');
+    // ★ [수정] POST로 userStatus 수신, GET 폴백도 지원
+    const userStatus = req.body?.userStatus || req.query?.userStatus || 'free';
 
-        if (!viewError && viewData && viewData.length > 0) {
-            // 뷰에서 정상 조회된 경우
-            const years = viewData
-                .map(d => d.year)
-                .filter(y => y && y.length === 4)
-                .sort((a, b) => b - a);
-            return res.status(200).json(years);
+    try {
+        let years = [];
+
+        if (userStatus === 'free') {
+            // ── FREE: is_premium = false 문제 연도만 ──────────────
+            const { data: viewData, error: viewError } = await supabase
+                .from('unique_years_free')
+                .select('year');
+
+            if (!viewError && viewData?.length > 0) {
+                years = viewData.map(d => d.year);
+            } else {
+                // 뷰 없을 경우 폴백
+                console.warn('[years.js] unique_years_free 뷰 없음 → 폴백');
+                const { data, error } = await supabase
+                    .from('questions')
+                    .select('exam_date')
+                    .eq('is_premium', false);
+                if (error) throw error;
+                years = [...new Set(data.map(d => String(d.exam_date).substring(0, 4)))];
+            }
+
+        } else if (userStatus === 'premium') {
+            // ── PREMIUM: is_premium = true AND is_verified = true 연도만 ──
+            const { data: viewData, error: viewError } = await supabase
+                .from('unique_years_premium')
+                .select('year');
+
+            if (!viewError && viewData?.length > 0) {
+                years = viewData.map(d => d.year);
+            } else {
+                // 뷰 없을 경우 폴백
+                console.warn('[years.js] unique_years_premium 뷰 없음 → 폴백');
+                const { data, error } = await supabase
+                    .from('questions')
+                    .select('exam_date')
+                    .eq('is_premium', true)
+                    .eq('is_verified', true);
+                if (error) throw error;
+                years = [...new Set(data.map(d => String(d.exam_date).substring(0, 4)))];
+            }
+
+        } else {
+            // ── ADMIN: 전체 연도 (미검수 포함) ──────────────────────
+            const { data: viewData, error: viewError } = await supabase
+                .from('unique_years')
+                .select('year');
+
+            if (!viewError && viewData?.length > 0) {
+                years = viewData.map(d => d.year);
+            } else {
+                console.warn('[years.js] unique_years 뷰 없음 → 폴백');
+                const { data, error } = await supabase
+                    .from('questions')
+                    .select('exam_date');
+                if (error) throw error;
+                years = [...new Set(data.map(d => String(d.exam_date).substring(0, 4)))];
+            }
         }
 
-        // [폴백] 뷰가 없을 경우 기존 방식으로 처리
-        console.warn('[years.js] unique_years 뷰 없음 → 폴백 실행. Supabase에서 뷰를 생성하면 성능이 향상됩니다.');
-        const { data, error } = await supabase
-            .from('questions')
-            .select('exam_date');
+        // 공통 정제 및 내림차순 정렬
+        const result = years
+            .filter(y => y && y.length === 4)
+            .sort((a, b) => b - a);
 
-        if (error) throw error;
+        res.status(200).json(result);
 
-        const uniqueYears = [...new Set(data.map(item => {
-            const dateStr = String(item.exam_date);
-            return dateStr.substring(0, 4);
-        }))]
-        .filter(year => year && year.length === 4)
-        .sort((a, b) => b - a);
-
-        res.status(200).json(uniqueYears);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
