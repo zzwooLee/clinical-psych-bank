@@ -297,18 +297,43 @@ body {
     background-color: #f0f4ff;
 }
 
+/* ★ [추가] 비밀번호 재설정 뒤로가기 버튼 */
+.btn-outline {
+    background-color: #fff;
+    color: var(--text-sub);
+    border: 1.5px solid var(--border-color);
+    display: block;
+}
+
+.btn-outline:hover {
+    background-color: #f7fafc;
+    color: var(--text-main);
+    border-color: #a0aec0;
+}
+
+/* ★ [추가] "비밀번호를 잊으셨나요?" 텍스트 링크 버튼 */
+.btn-forgot {
+    background: none;
+    border: none;
+    color: var(--text-sub);
+    font-size: 0.85rem;
+    font-family: inherit;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    padding: 0;
+    transition: color 0.2s;
+}
+
+.btn-forgot:hover {
+    color: var(--primary-color);
+}
+
 .auth-footer-text {
     margin-top: 20px;
     font-size: 0.85rem;
     color: var(--text-sub);
     text-align: center;
-}
-
-.btn-outline {
-    background: none;
-    border: 1px solid #ddd;
-    color: #888;
-    margin-top: 10px;
 }
 
 /* 메인 페이지 헤더 중앙 정렬 */
