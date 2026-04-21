@@ -1,9 +1,4 @@
 {
-  "functions": {
-    "slack-action.js": {
-      "bodyParser": false
-    }
-  },
   "rewrites": [
     {
       "source": "/api/admin/:action",
