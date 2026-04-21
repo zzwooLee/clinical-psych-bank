@@ -7,7 +7,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <style>
-        /* custom-modal — premium.html과 동일 스타일 (로그아웃·알림에 필요) */
+        /* custom-modal */
         .modal-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.6); display: flex; align-items: center;
@@ -36,21 +36,30 @@
             margin-bottom: 28px;
         }
         .auth-tab {
-            flex: 1;
-            padding: 10px 0;
-            background: none;
-            border: none;
-            font-size: 1rem;
-            font-weight: 600;
-            color: #a0aec0;
-            cursor: pointer;
-            transition: color 0.2s;
-            border-bottom: 2px solid transparent;
-            margin-bottom: -2px;
+            flex: 1; padding: 10px 0; background: none; border: none;
+            font-size: 1rem; font-weight: 600; color: #a0aec0; cursor: pointer;
+            transition: color 0.2s; border-bottom: 2px solid transparent; margin-bottom: -2px;
         }
         .auth-tab.active {
             color: var(--primary-color, #364d79);
             border-bottom-color: var(--primary-color, #364d79);
+        }
+
+        /* ★ [추가] 비밀번호 강도 표시 바 */
+        .pw-strength-bar {
+            height: 4px; border-radius: 2px; margin-top: 8px;
+            transition: all 0.3s; background: #e2e8f0; width: 0;
+        }
+        .pw-strength-bar.weak   { background: #fc8181; width: 33%; }
+        .pw-strength-bar.medium { background: #f6ad55; width: 66%; }
+        .pw-strength-bar.strong { background: #68d391; width: 100%; }
+        .pw-strength-text { font-size: 0.78rem; margin-top: 4px; color: var(--text-sub, #718096); }
+
+        /* ★ [추가] recovery 진입 배지 */
+        .recovery-badge {
+            display: inline-block; background: #ebf8ff; color: #2b6cb0;
+            font-size: 0.78rem; font-weight: 700; padding: 3px 10px;
+            border-radius: 20px; margin-bottom: 12px;
         }
     </style>
 </head>
@@ -63,17 +72,15 @@
     <main class="container main-auth-container">
         <section id="auth-container" class="auth-section">
 
-            <!-- ── 로그인/회원가입 카드 ── -->
             <div id="guest-view" class="auth-card">
 
-                <!-- 탭 전환 버튼 -->
-                <!-- ★ [수정] 탭 버튼 2개 → 2개 유지 (reset은 탭 없이 링크로 진입) -->
-                <div class="auth-tabs">
+                <!-- 상단 탭 바 (reset·new-password 진입 시 JS로 숨김) -->
+                <div id="auth-tabs-bar" class="auth-tabs">
                     <button id="tab-login"  class="auth-tab active" onclick="switchTab('login')">로그인</button>
                     <button id="tab-signup" class="auth-tab"        onclick="switchTab('signup')">회원가입</button>
                 </div>
 
-                <!-- 로그인 폼 -->
+                <!-- ── 1. 로그인 폼 ── -->
                 <div id="form-login">
                     <div class="auth-header">
                         <h2>환영합니다</h2>
@@ -93,13 +100,12 @@
                     <div class="button-group">
                         <button class="btn-primary main-btn" onclick="handleLogin()">로그인</button>
                     </div>
-                    <!-- ★ [추가] 비밀번호 찾기 링크 -->
                     <p style="text-align:center; margin-top:16px;">
                         <button class="btn-forgot" onclick="switchTab('reset')">🔑 비밀번호를 잊으셨나요?</button>
                     </p>
                 </div>
 
-                <!-- 회원가입 폼 -->
+                <!-- ── 2. 회원가입 폼 ── -->
                 <div id="form-signup" style="display:none;">
                     <div class="auth-header">
                         <h2>회원가입</h2>
@@ -124,7 +130,7 @@
                     </div>
                 </div>
 
-                <!-- ★ [추가] 비밀번호 재설정 폼 -->
+                <!-- ── 3. 비밀번호 재설정 이메일 발송 폼 ── -->
                 <div id="form-reset" style="display:none;">
                     <div class="auth-header">
                         <h2>비밀번호 재설정</h2>
@@ -138,12 +144,45 @@
                         </div>
                     </div>
                     <div class="button-group">
-                        <button class="btn-primary main-btn" onclick="handleResetPassword()">
+                        <button id="btn-send-reset" class="btn-primary main-btn" onclick="handleResetPassword()">
                             재설정 링크 발송
                         </button>
-                        <button class="btn-outline main-btn" onclick="switchTab('login')"
-                                style="margin-top:10px;">
+                        <button class="btn-outline main-btn" onclick="switchTab('login')" style="margin-top:10px;">
                             ← 로그인으로 돌아가기
+                        </button>
+                    </div>
+                </div>
+
+                <!-- ── 4. ★ [추가] 새 비밀번호 입력 폼 (이메일 링크 클릭 후 자동 진입) ── -->
+                <div id="form-new-password" style="display:none;">
+                    <div class="auth-header">
+                        <div><span class="recovery-badge">🔐 이메일 인증 완료</span></div>
+                        <h2>새 비밀번호 설정</h2>
+                        <p>새로 사용할 비밀번호를 입력해주세요.</p>
+                    </div>
+                    <div class="input-group">
+                        <div class="input-wrapper">
+                            <span class="icon">🔒</span>
+                            <input type="password" id="new-password"
+                                   placeholder="새 비밀번호 (6자 이상)"
+                                   oninput="checkPasswordStrength(this.value)"
+                                   onkeydown="if(event.key==='Enter') handleSetNewPassword()">
+                        </div>
+                        <!-- 비밀번호 강도 표시 -->
+                        <div style="padding: 0 4px;">
+                            <div id="pw-strength-bar"  class="pw-strength-bar"></div>
+                            <div id="pw-strength-text" class="pw-strength-text"></div>
+                        </div>
+                        <div class="input-wrapper" style="margin-top:4px;">
+                            <span class="icon">✅</span>
+                            <input type="password" id="new-password-confirm"
+                                   placeholder="비밀번호 확인"
+                                   onkeydown="if(event.key==='Enter') handleSetNewPassword()">
+                        </div>
+                    </div>
+                    <div class="button-group">
+                        <button id="btn-set-password" class="btn-primary main-btn" onclick="handleSetNewPassword()">
+                            비밀번호 변경 완료
                         </button>
                     </div>
                 </div>
@@ -172,17 +211,14 @@
     <div id="auto-logout-modal" class="modal-overlay" style="display:none;">
         <div class="modal-content">
             <h3 style="color:#e53e3e;">⏰ 자동 로그아웃 예정</h3>
-            <p>
-                장시간 활동이 없어<br>
-                <strong><span id="auto-logout-count">120</span>초</strong> 후 자동으로 로그아웃됩니다.
-            </p>
+            <p>장시간 활동이 없어<br><strong><span id="auto-logout-count">120</span>초</strong> 후 자동으로 로그아웃됩니다.</p>
             <div class="modal-buttons">
                 <button onclick="extendSession()" class="btn-modal-confirm">계속하기</button>
             </div>
         </div>
     </div>
 
-    <!-- handleLogout / showAlert이 사용하는 모달 DOM -->
+    <!-- handleLogout / showAlert 공통 모달 -->
     <div id="custom-modal" class="modal-overlay" style="display:none;">
         <div class="modal-content">
             <h3 id="modal-title">알림</h3>
@@ -197,14 +233,60 @@
 
     <script src="common.js" defer></script>
     <script>
-        // ★ [수정] reset 탭 지원 추가 — 탭 버튼 active 처리는 login/signup만
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // switchTab: login / signup / reset / new-password
+        // reset·new-password 진입 시 상단 탭 바 숨김
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         function switchTab(tab) {
-            ['login', 'signup', 'reset'].forEach(t => {
-                document.getElementById('form-' + t).style.display = (tab === t) ? 'block' : 'none';
+            ['login', 'signup', 'reset', 'new-password'].forEach(t => {
+                const el = document.getElementById('form-' + t);
+                if (el) el.style.display = (tab === t) ? 'block' : 'none';
             });
-            // reset 탭은 상단 탭 버튼이 없으므로 login/signup 버튼만 토글
-            document.getElementById('tab-login').classList.toggle('active',  tab === 'login');
-            document.getElementById('tab-signup').classList.toggle('active', tab === 'signup');
+
+            const tabBar = document.getElementById('auth-tabs-bar');
+            if (tab === 'reset' || tab === 'new-password') {
+                if (tabBar) tabBar.style.display = 'none';
+            } else {
+                if (tabBar) tabBar.style.display = 'flex';
+                document.getElementById('tab-login').classList.toggle('active',  tab === 'login');
+                document.getElementById('tab-signup').classList.toggle('active', tab === 'signup');
+            }
+        }
+
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // 비밀번호 강도 표시
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        function checkPasswordStrength(pw) {
+            const bar  = document.getElementById('pw-strength-bar');
+            const text = document.getElementById('pw-strength-text');
+            if (!bar || !text) return;
+
+            if (!pw) {
+                bar.className  = 'pw-strength-bar';
+                text.innerText = '';
+                return;
+            }
+            const score = [
+                pw.length >= 8,
+                /[A-Z]/.test(pw),
+                /[a-z]/.test(pw),
+                /[0-9]/.test(pw),
+                /[^A-Za-z0-9]/.test(pw)
+            ].filter(Boolean).length;
+
+            if (score <= 2) {
+                bar.className    = 'pw-strength-bar weak';
+                text.innerText   = '⚠️ 약함 — 숫자·대문자·특수문자를 추가하면 더 안전합니다.';
+                text.style.color = '#c53030';
+            } else if (score <= 3) {
+                bar.className    = 'pw-strength-bar medium';
+                text.innerText   = '👍 보통';
+                text.style.color = '#d69e2e';
+            } else {
+                bar.className    = 'pw-strength-bar strong';
+                text.innerText   = '✅ 강함';
+                text.style.color = '#276749';
+            }
         }
     </script>
 </body>
