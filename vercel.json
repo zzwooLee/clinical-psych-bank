@@ -17,6 +17,14 @@
       "destination": "/api/delete-user.js"
     },
     {
+      "source": "/api/admin/update-question",
+      "destination": "/api/update-question.js"
+    },
+    {
+      "source": "/api/admin/verify-stats",
+      "destination": "/api/verify-stats.js"
+    },
+    {
       "source": "/api/slack-action",
       "destination": "/api/slack-action.js"
     }
