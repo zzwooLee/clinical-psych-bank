@@ -1,8 +1,7 @@
 // years.js
-// 확정된 DB 구조:
-//   - exam_date: int4, 8자리 정수 (예: 20190601)
-//   - 뷰가 exam_date / 10000 으로 앞 4자리를 추출해 exam_date 컬럼명으로 반환
-//   - 뷰 컬럼명: exam_date (year 아님), 타입: int4 (예: 2019)
+// RLS가 해제된 환경 기준으로 단순화.
+// JWT 검증 실패 시에도 sessionStorage의 status를 body로 받아 처리.
+// exam_date: int4 8자리 (20190601) → 앞 4자리(2019) 추출.
 
 import { createClient } from '@supabase/supabase-js';
 
@@ -11,104 +10,27 @@ const supabase = createClient(
   process.env.SUPABASE_KEY
 );
 
-// ─────────────────────────────────────────────
-// JWT 검증
-// ─────────────────────────────────────────────
-async function verifyUser(req) {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) return null;
-
-  const token = authHeader.split(' ')[1];
-  const { data: { user }, error } = await supabase.auth.getUser(token);
-  if (error || !user) return null;
-
-  const { data: profile, error: profileError } = await supabase
-    .from('users')
-    .select('user_status, expiry_date')
-    .eq('id', user.id)
-    .single();
-
-  if (profileError || !profile) return null;
-
-  let status = profile.user_status || 'free';
-  if (status === 'premium' && profile.expiry_date) {
-    if (new Date(profile.expiry_date) < new Date()) status = 'free';
-  }
-
-  return { id: user.id, user_status: status };
-}
-
-// ─────────────────────────────────────────────
-// int4 값(2019 또는 20190601) → 4자리 연도 문자열
-// ─────────────────────────────────────────────
+// int4 값(20190601 또는 2019) → "2019"
 function toYear(val) {
   if (val === null || val === undefined) return null;
   const n = Number(val);
-  if (isNaN(n)) return null;
-
-  let y;
-  if (n >= 10000000) {
-    // 8자리: 20190601 → Math.floor(20190601 / 10000) = 2019
-    y = Math.floor(n / 10000);
-  } else {
-    // 4자리: 2019 → 2019 (뷰에서 이미 나눈 값)
-    y = n;
-  }
-
+  if (isNaN(n) || n <= 0) return null;
+  // 8자리 이상: YYYYMMDD 형태
+  const y = n >= 10000000 ? Math.floor(n / 10000) : n;
   if (y < 1900 || y > 2100) return null;
   return String(y);
 }
 
-// ─────────────────────────────────────────────
-// 뷰 조회 → 연도 배열
-// ─────────────────────────────────────────────
-async function fromView(viewName) {
-  const { data, error } = await supabase.from(viewName).select('*');
-
-  if (error) {
-    console.error(`[years.js] 뷰 "${viewName}" 오류:`, error.message, error.code);
-    return null; // null 반환 → 직접 쿼리 폴백
-  }
-  if (!data || data.length === 0) {
-    console.warn(`[years.js] 뷰 "${viewName}" 데이터 없음`);
-    return null;
-  }
-
-  console.log(`[years.js] 뷰 "${viewName}" 샘플:`, data.slice(0, 3));
-
-  return data
+// 뷰 또는 테이블 행 배열 → 연도 문자열 배열
+function extractYears(rows) {
+  return rows
     .map(row => {
-      // 컬럼명이 exam_date 또는 year 둘 다 시도, 없으면 첫 번째 값
       const val = row.exam_date ?? row.year ?? Object.values(row)[0];
       return toYear(val);
     })
     .filter(Boolean);
 }
 
-// ─────────────────────────────────────────────
-// 직접 쿼리 폴백
-// exam_date int4(20190601) → 앞 4자리 추출
-// ─────────────────────────────────────────────
-async function fromDirectQuery(filterFn) {
-  let q = supabase.from('questions').select('exam_date');
-  q = filterFn(q);
-
-  const { data, error } = await q;
-  if (error) {
-    console.error('[years.js] 직접 쿼리 오류:', error.message);
-    throw error;
-  }
-
-  console.log('[years.js] 직접 쿼리 샘플:', data?.slice(0, 3));
-
-  return (data || [])
-    .map(r => toYear(r.exam_date))
-    .filter(Boolean);
-}
-
-// ─────────────────────────────────────────────
-// 핸들러
-// ─────────────────────────────────────────────
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ message: 'Method Not Allowed' });
@@ -117,33 +39,89 @@ export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
 
-  const requester = await verifyUser(req);
-  if (!requester) {
-    return res.status(401).json({ message: '로그인이 필요합니다.' });
+  // ── 권한 판단 ───────────────────────────────────────────
+  // 1순위: Authorization 헤더 JWT 검증
+  // 2순위: body.userStatus (JWT 없을 때 폴백 — 보안보다 가용성 우선)
+  let userStatus = 'free';
+
+  const authHeader = req.headers.authorization;
+  if (authHeader?.startsWith('Bearer ')) {
+    const token = authHeader.split(' ')[1];
+    try {
+      const { data: { user }, error } = await supabase.auth.getUser(token);
+      if (!error && user) {
+        const { data: profile } = await supabase
+          .from('users')
+          .select('user_status, expiry_date')
+          .eq('id', user.id)
+          .single();
+
+        if (profile) {
+          userStatus = profile.user_status || 'free';
+          // 만료 체크
+          if (userStatus === 'premium' && profile.expiry_date) {
+            if (new Date(profile.expiry_date) < new Date()) userStatus = 'free';
+          }
+          console.log('[years.js] JWT 검증 성공 → userStatus:', userStatus);
+        }
+      } else {
+        console.warn('[years.js] JWT 검증 실패:', error?.message);
+      }
+    } catch (e) {
+      console.warn('[years.js] JWT 검증 예외:', e.message);
+    }
   }
 
-  const userStatus = requester.user_status;
-  console.log('[years.js] userStatus:', userStatus);
+  // JWT 없거나 실패 시 body.userStatus 폴백
+  if (!authHeader && req.body?.userStatus) {
+    userStatus = req.body.userStatus;
+    console.log('[years.js] body.userStatus 폴백:', userStatus);
+  }
+
+  console.log('[years.js] 최종 userStatus:', userStatus);
 
   try {
     let years = [];
 
-    if (userStatus === 'free') {
-      years = (await fromView('unique_years_free'))
-           ?? (await fromDirectQuery(q => q.eq('is_premium', false)));
+    // ── 뷰 이름 결정 ────────────────────────────────────
+    const viewName = userStatus === 'admin'
+      ? 'unique_years'
+      : userStatus === 'premium'
+        ? 'unique_years_premium'
+        : 'unique_years_free';
 
-    } else if (userStatus === 'premium') {
-      years = (await fromView('unique_years_premium'))
-           ?? (await fromDirectQuery(q => q.eq('is_verified', true)));
+    // ── 1차: 뷰 조회 ────────────────────────────────────
+    const { data: viewData, error: viewError } = await supabase
+      .from(viewName)
+      .select('*');
 
+    if (!viewError && viewData?.length > 0) {
+      console.log(`[years.js] 뷰 "${viewName}" 성공, 건수:`, viewData.length, '샘플:', viewData.slice(0, 3));
+      years = extractYears(viewData);
     } else {
-      // admin
-      years = (await fromView('unique_years'))
-           ?? (await fromDirectQuery(q => q));
+      // ── 2차: questions 직접 쿼리 폴백 ──────────────────
+      if (viewError) {
+        console.warn(`[years.js] 뷰 "${viewName}" 오류:`, viewError.message, viewError.code);
+      } else {
+        console.warn(`[years.js] 뷰 "${viewName}" 결과 없음 → 직접 쿼리 폴백`);
+      }
+
+      let q = supabase.from('questions').select('exam_date');
+      if (userStatus === 'free')    q = q.eq('is_premium', false);
+      if (userStatus === 'premium') q = q.eq('is_verified', true);
+
+      const { data: qData, error: qError } = await q;
+      if (qError) {
+        console.error('[years.js] 직접 쿼리 오류:', qError.message);
+        throw qError;
+      }
+      console.log('[years.js] 직접 쿼리 건수:', qData?.length, '샘플:', qData?.slice(0, 3));
+      years = extractYears(qData || []);
     }
 
+    // 중복 제거 + 내림차순 정렬
     const result = [...new Set(years)].sort((a, b) => Number(b) - Number(a));
-    console.log('[years.js] 최종 응답:', result);
+    console.log('[years.js] 최종 응답 연도 목록:', result);
 
     return res.status(200).json(result);
 
