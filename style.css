@@ -1,8 +1,8 @@
 /* style.css */
 
 :root {
-    --primary-color: #364d79;    /* 네이비 포인트 */
-    --bg-color: #f0f2f5;         /* 배경색 */
+    --primary-color: #364d79;
+    --bg-color: #f0f2f5;
     --card-bg: #ffffff;
     --text-main: #1a202c;
     --text-sub: #718096;
@@ -59,24 +59,11 @@ body {
     font-size: 0.85rem;
     transition: 0.2s;
 }
+.btn-logout:hover { background-color: #edf2f7; color: #1a202c; }
 
-.btn-logout:hover {
-    background-color: #edf2f7;
-    color: #1a202c;
-}
-
-/* 중앙 타이틀 */
-.premium-header {
-    text-align: center;
-    margin: 40px 0;
-}
-
-.premium-title {
-    font-size: 2.5rem;
-    font-weight: 800;
-    color: var(--text-main);
-    letter-spacing: -1px;
-}
+/* 타이틀 */
+.premium-header { text-align: center; margin: 40px 0; }
+.premium-title  { font-size: 2.5rem; font-weight: 800; color: var(--text-main); letter-spacing: -1px; }
 
 /* 필터 바 */
 .filter-bar {
@@ -89,16 +76,13 @@ body {
     align-items: center;
     margin-bottom: 30px;
 }
-
 .filter-group { display: flex; gap: 10px; }
-
 .filter-group select {
     padding: 8px 12px;
     border: 1px solid var(--border-color);
     border-radius: 8px;
     color: #4a5568;
 }
-
 .btn-random {
     background: #fff;
     color: var(--primary-color);
@@ -109,7 +93,6 @@ body {
     cursor: pointer;
     transition: 0.2s;
 }
-
 .btn-random:hover { background: #f0f4ff; }
 
 /* 문제 카드 */
@@ -119,22 +102,11 @@ body {
     padding: 40px;
     box-shadow: var(--shadow);
 }
-
-.card-header-info {
-    font-size: 0.9rem;
-    color: var(--text-sub);
-    margin-bottom: 10px;
-}
-
-.card-question {
-    font-size: 1.3rem;
-    font-weight: 500;
-    margin-bottom: 30px;
-}
+.card-header-info { font-size: 0.9rem; color: var(--text-sub); margin-bottom: 10px; }
+.card-question    { font-size: 1.3rem; font-weight: 500; margin-bottom: 30px; }
 
 /* 보기 버튼 */
 .choices { display: flex; flex-direction: column; gap: 12px; }
-
 .choice-btn {
     display: flex;
     align-items: center;
@@ -146,12 +118,9 @@ body {
     cursor: pointer;
     transition: 0.2s;
 }
-
 .choice-btn:hover { border-color: var(--primary-color); }
-
 .choice-num {
-    width: 26px;
-    height: 26px;
+    width: 26px; height: 26px;
     background: #f1f5f9;
     border-radius: 50%;
     display: inline-flex;
@@ -163,7 +132,7 @@ body {
     color: var(--text-sub);
 }
 
-/* 푸터 */
+/* 카드 푸터 */
 .card-footer {
     display: flex;
     justify-content: space-between;
@@ -172,7 +141,6 @@ body {
     padding-top: 20px;
     border-top: 1px solid #f1f5f9;
 }
-
 .btn-nav {
     padding: 10px 24px;
     border: 1px solid var(--border-color);
@@ -180,16 +148,8 @@ body {
     border-radius: 8px;
     cursor: pointer;
 }
-
-.btn-nav.active {
-    color: var(--primary-color);
-    border-color: var(--primary-color);
-    font-weight: bold;
-}
-
+.btn-nav.active  { color: var(--primary-color); border-color: var(--primary-color); font-weight: bold; }
 .btn-nav:disabled { opacity: 0.3; }
-
-/* style.css 하단에 추가 또는 덮어쓰기 */
 
 /* 메인 로그인 컨테이너 중앙 정렬 */
 .main-auth-container {
@@ -197,7 +157,7 @@ body {
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    min-height: 80vh; /* 화면 높이에 맞춰 중앙 배치 */
+    min-height: 80vh;
 }
 
 .auth-card {
@@ -210,46 +170,22 @@ body {
     transition: transform 0.3s ease;
 }
 
-.auth-header {
-    margin-bottom: 30px;
-    text-align: center;
-}
-
+.auth-header { margin-bottom: 30px; text-align: center; }
 .auth-header h2 {
     font-size: 1.8rem;
     font-weight: 700;
     color: var(--primary-color);
     margin-bottom: 8px;
 }
+.auth-header p { color: var(--text-sub); font-size: 0.95rem; }
 
-.auth-header p {
-    color: var(--text-sub);
-    font-size: 0.95rem;
-}
-
-/* 입력창 스타일 강화 */
-.input-group {
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-    margin-bottom: 25px;
-}
-
-.input-wrapper {
-    position: relative;
-    display: flex;
-    align-items: center;
-}
-
-.input-wrapper .icon {
-    position: absolute;
-    left: 15px;
-    font-size: 1.1rem;
-}
-
+/* 입력창 */
+.input-group  { display: flex; flex-direction: column; gap: 15px; margin-bottom: 25px; }
+.input-wrapper { position: relative; display: flex; align-items: center; }
+.input-wrapper .icon { position: absolute; left: 15px; font-size: 1.1rem; }
 .input-wrapper input {
     width: 100%;
-    padding: 14px 14px 14px 45px; /* 아이콘 공간 확보 */
+    padding: 14px 14px 14px 45px;
     border: 1.5px solid #eef0f2;
     border-radius: 12px;
     font-size: 1rem;
@@ -257,14 +193,13 @@ body {
     transition: all 0.2s;
     background-color: #f9fbff;
 }
-
 .input-wrapper input:focus {
     border-color: var(--primary-color);
     background-color: #fff;
     box-shadow: 0 0 0 4px rgba(54, 77, 121, 0.1);
 }
 
-/* 버튼 스타일 강화 */
+/* 버튼 공통 */
 .main-btn {
     width: 100%;
     padding: 14px;
@@ -274,37 +209,28 @@ body {
     cursor: pointer;
     transition: all 0.2s;
 }
-
 .btn-primary {
     background-color: var(--primary-color);
     color: white;
     border: none;
     margin-bottom: 10px;
 }
-
-.btn-primary:hover {
-    background-color: #2a3d61;
-    transform: translateY(-2px);
-}
+.btn-primary:hover { background-color: #2a3d61; transform: translateY(-2px); }
 
 .btn-secondary {
     background-color: #fff;
     color: var(--primary-color);
     border: 1.5px solid var(--primary-color);
 }
+.btn-secondary:hover { background-color: #f0f4ff; }
 
-.btn-secondary:hover {
-    background-color: #f0f4ff;
-}
-
-/* ★ [추가] 비밀번호 재설정 뒤로가기 버튼 */
+/* ★ [추가] 로그인으로 돌아가기 회색 외곽선 버튼 */
 .btn-outline {
     background-color: #fff;
     color: var(--text-sub);
     border: 1.5px solid var(--border-color);
     display: block;
 }
-
 .btn-outline:hover {
     background-color: #f7fafc;
     color: var(--text-main);
@@ -324,27 +250,18 @@ body {
     padding: 0;
     transition: color 0.2s;
 }
+.btn-forgot:hover { color: var(--primary-color); }
 
-.btn-forgot:hover {
-    color: var(--primary-color);
-}
+.auth-footer-text { margin-top: 20px; font-size: 0.85rem; color: var(--text-sub); text-align: center; }
 
-.auth-footer-text {
-    margin-top: 20px;
-    font-size: 0.85rem;
-    color: var(--text-sub);
-    text-align: center;
-}
-
-/* 메인 페이지 헤더 중앙 정렬 */
+/* 메인 헤더 */
 .main-header {
     background-color: #fff;
     padding: 30px 0;
-    text-align: center; /* 텍스트 중앙 정렬 */
+    text-align: center;
     border-bottom: 1px solid var(--border-color);
     margin-bottom: 20px;
 }
-
 .main-header h1 {
     font-size: 2.2rem;
     font-weight: 800;
@@ -353,7 +270,7 @@ body {
     margin: 0;
 }
 
-/* index.html의 로그아웃 버튼 스타일 */
+/* 로그아웃 버튼 (index.html 전용) */
 .btn-logout-main {
     background-color: transparent;
     border: 1px solid #cbd5e0;
@@ -364,26 +281,17 @@ body {
     font-weight: 500;
     cursor: pointer;
     transition: all 0.2s;
-    width: 100%; /* 위쪽 파란 버튼과 너비를 맞춤 */
+    width: 100%;
     margin-top: 10px;
 }
+.btn-logout-main:hover { background-color: #f7fafc; color: #2d3748; border-color: #a0aec0; }
 
-.btn-logout-main:hover {
-    background-color: #f7fafc;
-    color: #2d3748;
-    border-color: #a0aec0;
-}
-
-/* 결과 메시지 공통 */
-.result-msg {
-    font-size: 1.2rem;
-    font-weight: 700;
-    margin-bottom: 10px;
-}
+/* 결과 메시지 */
+.result-msg         { font-size: 1.2rem; font-weight: 700; margin-bottom: 10px; }
 .result-msg.success { color: #2ecc71; }
-.result-msg.error { color: #e74c3c; }
+.result-msg.error   { color: #e74c3c; }
 
-/* 정답 안내 텍스트 */
+/* 정답 안내 */
 .correct-info {
     background-color: #f8f9fa;
     padding: 10px;
@@ -393,7 +301,7 @@ body {
     color: #4a5568;
 }
 
-/* 해설 박스 디자인 */
+/* 해설 박스 */
 .explanation-box {
     text-align: left;
     background-color: #f0f4ff;
@@ -402,22 +310,10 @@ body {
     border-radius: 4px 12px 12px 4px;
     margin-top: 15px;
 }
+.exp-title   { font-weight: 700; color: var(--primary-color); margin-bottom: 8px; font-size: 0.95rem; }
+.exp-content { font-size: 0.95rem; color: #2d3748; line-height: 1.6; word-break: keep-all; }
 
-.exp-title {
-    font-weight: 700;
-    color: var(--primary-color);
-    margin-bottom: 8px;
-    font-size: 0.95rem;
-}
-
-.exp-content {
-    font-size: 0.95rem;
-    color: #2d3748;
-    line-height: 1.6;
-    word-break: keep-all;
-}
-
-/* 관리자 버튼 및 패널 스타일 */
+/* 관리자 */
 .btn-admin-outline {
     background: #fff;
     border: 1px solid #e53e3e;
@@ -427,114 +323,27 @@ body {
     font-size: 0.75rem;
     cursor: pointer;
 }
+.admin-panel-card  { background: #fff5f5; border: 1px solid #feb2b2; border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+.admin-form-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 15px; }
+.full-row          { grid-column: span 3; height: 80px; }
+.admin-actions     { margin-top: 15px; display: flex; gap: 10px; }
+.btn-ai-gen        { background-color: #805ad5; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; }
+.admin-stats-grid  { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; }
 
-.admin-panel-card {
-    background: #fff5f5;
-    border: 1px solid #feb2b2;
-    border-radius: 12px;
-    padding: 20px;
-    margin-bottom: 20px;
-}
+.stat-card  { background: white; padding: 15px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); text-align: center; border: 1px solid #edf2f7; }
+.stat-label { display: block; font-size: 0.75rem; color: #718096; margin-bottom: 5px; }
+.stat-value { font-size: 1.25rem; font-weight: 800; color: #2d3748; }
 
-.admin-form-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 10px;
-    margin-top: 15px;
-}
+.btn-refresh-stats { background-color: #edf2f7; color: #4a5568; border: none; padding: 6px 12px; border-radius: 6px; font-size: 0.8rem; cursor: pointer; }
 
-.full-row { grid-column: span 3; height: 80px; }
+/* 유저 관리 테이블 */
+.user-table               { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.9rem; }
+.user-table th,
+.user-table td            { padding: 12px; text-align: left; border-bottom: 1px solid #edf2f7; }
+.user-table th            { background-color: #f7fafc; color: #4a5568; font-weight: 600; }
+.user-table select        { padding: 4px; border-radius: 4px; border: 1px solid #cbd5e0; }
+.user-table button:hover  { transform: scale(1.2); transition: transform 0.2s; }
 
-.admin-actions {
-    margin-top: 15px;
-    display: flex;
-    gap: 10px;
-}
-
-.btn-ai-gen {
-    background-color: #805ad5;
-    color: white;
-    border: none;
-    padding: 10px 20px;
-    border-radius: 8px;
-    cursor: pointer;
-}
-
-.admin-stats-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 15px;
-}
-
-.stat-card {
-    background: white;
-    padding: 15px;
-    border-radius: 10px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-    text-align: center;
-    border: 1px solid #edf2f7;
-}
-
-.stat-label {
-    display: block;
-    font-size: 0.75rem;
-    color: #718096;
-    margin-bottom: 5px;
-}
-
-.stat-value {
-    font-size: 1.25rem;
-    font-weight: 800;
-    color: #2d3748;
-}
-
-.btn-refresh-stats {
-    background-color: #edf2f7;
-    color: #4a5568;
-    border: none;
-    padding: 6px 12px;
-    border-radius: 6px;
-    font-size: 0.8rem;
-    cursor: pointer;
-}
-
-/* 유저 관리 테이블 스타일 */
-.user-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 10px;
-    font-size: 0.9rem;
-}
-
-.user-table th, .user-table td {
-    padding: 12px;
-    text-align: left;
-    border-bottom: 1px solid #edf2f7;
-}
-
-.user-table th {
-    background-color: #f7fafc;
-    color: #4a5568;
-    font-weight: 600;
-}
-
-.badge-free { color: #718096; background: #edf2f7; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; }
-.badge-premium { color: #3182ce; background: #ebf8ff; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; }
-.badge-admin { color: #e53e3e; background: #fff5f5; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; }
-
-.user-table select {
-    padding: 4px;
-    border-radius: 4px;
-    border: 1px solid #cbd5e0;
-}
-
-/* 삭제 버튼 호버 효과 */
-.user-table button:hover {
-    transform: scale(1.2);
-    transition: transform 0.2s;
-}
-
-/* badge 스타일 누락 방지 (기존 코드 확인용) */
-.badge-admin { background: #fee2e2; color: #991b1b; padding: 2px 8px; border-radius: 4px; font-weight: bold; }
+.badge-free    { background: #f3f4f6; color: #374151; padding: 2px 8px; border-radius: 4px; }
 .badge-premium { background: #dbeafe; color: #1e40af; padding: 2px 8px; border-radius: 4px; font-weight: bold; }
-.badge-free { background: #f3f4f6; color: #374151; padding: 2px 8px; border-radius: 4px; }
+.badge-admin   { background: #fee2e2; color: #991b1b; padding: 2px 8px; border-radius: 4px; font-weight: bold; }
