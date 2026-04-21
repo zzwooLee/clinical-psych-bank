@@ -213,7 +213,7 @@
     </div>
 
     <script src="premium-info.js"></script>
-    <script src="common.js" defer></script>
+    <script src="common.js"></script>
     <script>
         /* ── 과목 데이터 ── */
         const subjectData = {
@@ -236,18 +236,34 @@
         }
 
         /* ── 연도 초기화 ── */
-        // ★ [수정] userStatus를 함께 전송 → 등급별 연도 목록 수신
+        // [C-1 수정] userStatus body 제거 → JWT Authorization 헤더로 권한 전달
+        // common.js의 authHeaders()가 로드되는 타이밍을 보장하기 위해
+        // DOMContentLoaded 내부에서만 호출합니다.
         async function initYears() {
             const yearSelect = document.getElementById('sel-year');
             if (!yearSelect) return;
-            const user = JSON.parse(sessionStorage.getItem('quiz_user') || '{}');
+
+            // common.js의 authHeaders() 사용 — quiz_token을 Authorization 헤더에 주입
+            const headers = (typeof authHeaders === 'function')
+                ? authHeaders()
+                : { 'Content-Type': 'application/json' };
+
             try {
                 const response = await fetch('/api/years', {
                     method : 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body   : JSON.stringify({ userStatus: user.status || 'free' })
+                    headers: headers,
+                    body   : JSON.stringify({})
                 });
-                if (!response.ok) throw new Error('years API 오류');
+
+                // 세션 만료 시 로그인 페이지로 이동
+                if (response.status === 401) {
+                    console.warn('세션이 만료되었습니다. 다시 로그인해주세요.');
+                    location.href = 'index.html';
+                    return;
+                }
+
+                if (!response.ok) throw new Error(`years API 오류 (${response.status})`);
+
                 const years = await response.json();
                 yearSelect.innerHTML = '<option value="">연도 전체</option>';
                 years.forEach(year => {
@@ -278,6 +294,7 @@
                 }
             }
 
+            // common.js가 동기 로드되므로 authHeaders는 이미 정의되어 있습니다.
             initYears();
             updateSubjects();
         });
