@@ -1,13 +1,10 @@
 // auth.js
-// [C-1] 수정: 로그인 성공 시 Supabase access_token을 클라이언트에 반환.
-//             이후 모든 API 호출에서 클라이언트가 이 토큰을 Authorization 헤더로 전송하고,
-//             서버는 이를 검증해 권한을 판단합니다 (body.userStatus 신뢰 제거).
-// [C-2] 수정: 이메일 미인증 상태에서 로그인 시도 시 403 반환.
-//             비밀번호 재설정(reset / set-new-password) 액션 추가.
+// [C-1] 로그인 성공 시 Supabase access_token을 클라이언트에 반환.
+// [C-2] 이메일 미인증 체크, 비밀번호 재설정 액션 추가.
+// [FIX] profileError 발생 시 throw 대신 기본값(free) 처리 — users 행 없거나 RLS 오류 시 500 방지.
 
 import { createClient } from '@supabase/supabase-js';
 
-// Service Role Key: 서버 내부 DB 조회 전용 (클라이언트에 절대 노출 금지)
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_KEY
@@ -20,6 +17,12 @@ export default async function handler(req, res) {
 
   const { action } = req.query;
 
+  // 환경변수 누락 조기 감지
+  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_KEY) {
+    console.error('[auth.js] SUPABASE_URL 또는 SUPABASE_KEY 환경변수 누락');
+    return res.status(500).json({ message: '서버 설정 오류입니다. 관리자에게 문의해주세요.' });
+  }
+
   try {
     // ────────────────────────────────────────────────
     // 로그인
@@ -30,29 +33,44 @@ export default async function handler(req, res) {
         return res.status(400).json({ message: '이메일과 비밀번호를 입력해주세요.' });
       }
 
+      // 1) Supabase Auth 로그인
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) throw error;
+      if (error) {
+        console.error('[auth.js] signInWithPassword 실패:', error.message);
+        throw error;
+      }
 
-      // [C-2] 이메일 인증 여부 확인
-      if (!data.user.email_confirmed_at) {
+      // 2) 이메일 인증 여부 확인
+      //    Supabase 대시보드 > Authentication > Providers > Email >
+      //    "Confirm email" 토글이 OFF이면 이 조건을 제거해도 됩니다.
+      if (data.user.email_confirmed_at === null) {
+        console.warn('[auth.js] 미인증 이메일 로그인 시도:', email);
         return res.status(403).json({
           message: '이메일 인증이 필요합니다. 받은 편지함을 확인하고 인증 링크를 클릭해주세요.'
         });
       }
 
-      // DB에서 프로필 조회
+      // 3) users 테이블에서 프로필 조회
+      //    [FIX] profileError를 throw하지 않고 기본값으로 처리합니다.
+      //    흔한 실패 원인:
+      //      PGRST116 → users 테이블에 해당 행 없음
+      //      42501     → SUPABASE_KEY가 anon key여서 RLS에 막힘
       const { data: userProfile, error: profileError } = await supabase
         .from('users')
         .select('user_status, name, expiry_date')
         .eq('id', data.user.id)
         .single();
 
-      if (profileError) throw profileError;
+      if (profileError) {
+        console.error('[auth.js] users 조회 실패 (id:', data.user.id, '):', profileError.message);
+        console.error('[auth.js] 힌트: Vercel 환경변수 SUPABASE_KEY가 service_role 키인지 확인하세요.');
+      }
 
-      // 만료일 지난 premium 유저 자동 다운그레이드
+      // 4) 만료일 경과한 premium 자동 다운그레이드
       let status = userProfile?.user_status || 'free';
       if (status === 'premium' && userProfile?.expiry_date) {
         if (new Date(userProfile.expiry_date) < new Date()) {
+          console.log('[auth.js] premium 만료 — free로 다운그레이드:', data.user.id);
           await supabase
             .from('users')
             .update({ user_status: 'free' })
@@ -61,16 +79,30 @@ export default async function handler(req, res) {
         }
       }
 
-      // [C-1] access_token을 클라이언트에 반환 — 이후 API 호출 시 Authorization 헤더로 사용
+      // 5) users 행이 없으면 자동 생성 (회원가입 시 insert 누락 복구)
+      //    RLS 오류(42501)가 아닌 경우에만 시도합니다.
+      const isRlsError = profileError?.message?.includes('42501') ||
+                         profileError?.code === '42501';
+      if (!userProfile && profileError && !isRlsError) {
+        console.log('[auth.js] users 행 자동 생성 시도:', data.user.id);
+        await supabase.from('users').insert([{
+          id         : data.user.id,
+          email      : data.user.email,
+          name       : data.user.user_metadata?.name || '',
+          user_status: 'free'
+        }]);
+      }
+
+      console.log('[auth.js] 로그인 성공:', email, '/ status:', status);
+
+      // 6) 응답 — access_token 포함
       return res.status(200).json({
         user: {
           id   : data.user.id,
           email: data.user.email,
-          name : userProfile?.name || ''
+          name : userProfile?.name || data.user.user_metadata?.name || ''
         },
         status,
-        // 클라이언트는 이 토큰을 sessionStorage에 저장하고
-        // 모든 API 요청 헤더에 'Authorization: Bearer <token>' 형태로 포함해야 합니다.
         accessToken: data.session.access_token
       });
     }
@@ -97,13 +129,13 @@ export default async function handler(req, res) {
       });
       if (error) throw error;
 
-      // users 테이블에 프로필 행 삽입
-      // signUp 후 user.id가 즉시 발급되지 않는 경우(이메일 인증 필요 설정)를 대비해
-      // id가 있을 때만 삽입합니다.
       if (data.user?.id) {
-        await supabase
+        const { error: insertError } = await supabase
           .from('users')
           .insert([{ id: data.user.id, email, name, user_status: 'free' }]);
+        if (insertError) {
+          console.error('[auth.js] users insert 실패:', insertError.message);
+        }
       }
 
       return res.status(200).json({
@@ -112,7 +144,7 @@ export default async function handler(req, res) {
     }
 
     // ────────────────────────────────────────────────
-    // [C-2] 비밀번호 재설정 — 이메일 발송
+    // [C-2] 비밀번호 재설정 이메일 발송
     // ────────────────────────────────────────────────
     if (action === 'reset-password') {
       const { email } = req.body;
@@ -120,26 +152,23 @@ export default async function handler(req, res) {
         return res.status(400).json({ message: '이메일을 입력해주세요.' });
       }
 
-      // redirectTo: 사용자가 링크 클릭 후 돌아올 페이지
-      // Supabase가 URL에 token_hash와 type=recovery를 붙여줍니다.
       const siteUrl = process.env.SITE_URL || 'https://your-domain.vercel.app';
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${siteUrl}/index.html?type=recovery`
       });
 
-      // 보안상 이메일 존재 여부를 노출하지 않음 — 항상 200 반환
       if (error) {
-        console.error('resetPasswordForEmail error:', error.message);
+        console.error('[auth.js] resetPasswordForEmail 오류:', error.message);
       }
 
+      // 보안상 이메일 존재 여부 미노출 — 성공/실패 무관하게 200 반환
       return res.status(200).json({
         message: '재설정 링크를 발송했습니다. 이메일을 확인해주세요. (스팸함도 확인해주세요)'
       });
     }
 
     // ────────────────────────────────────────────────
-    // [C-2] 비밀번호 재설정 — 새 비밀번호 저장
-    // 클라이언트가 이메일 링크 클릭 후 획득한 access_token을 헤더로 전송해야 합니다.
+    // [C-2] 새 비밀번호 저장
     // ────────────────────────────────────────────────
     if (action === 'set-new-password') {
       const { password } = req.body;
@@ -154,14 +183,14 @@ export default async function handler(req, res) {
 
       const token = authHeader.split(' ')[1];
 
-      // 복구 토큰으로 유저 세션을 생성한 뒤 비밀번호 변경
       const { data: sessionData, error: sessionError } =
         await supabase.auth.getUser(token);
       if (sessionError || !sessionData.user) {
-        return res.status(401).json({ message: '유효하지 않거나 만료된 토큰입니다. 재설정 링크를 다시 요청해주세요.' });
+        return res.status(401).json({
+          message: '유효하지 않거나 만료된 토큰입니다. 재설정 링크를 다시 요청해주세요.'
+        });
       }
 
-      // Service Role Key를 사용하는 Admin API로 비밀번호 변경
       const { error: updateError } = await supabase.auth.admin.updateUserById(
         sessionData.user.id,
         { password }
@@ -174,7 +203,7 @@ export default async function handler(req, res) {
     return res.status(400).json({ message: 'Invalid auth action' });
 
   } catch (error) {
-    console.error(`[auth.js] action=${action}`, error.message);
+    console.error(`[auth.js] action=${action} 예외:`, error.message);
     return res.status(500).json({ message: error.message });
   }
 }
