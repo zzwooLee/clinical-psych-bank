@@ -1,14 +1,5 @@
 {
-  "functions": {
-    "api/slack-action.js": {
-      "bodyParser": false
-    }
-  },
   "rewrites": [
-    {
-      "source": "/api/debug-years",
-      "destination": "/api/debug-years.js"
-    },
     {
       "source": "/api/admin/:action",
       "destination": "/api/admin.js?action=:action"
