@@ -203,7 +203,7 @@ window.showAlert = function (title, desc) {
 };
 
 // ─────────────────────────────────────────────
-// 4. 인증 — 로그인 / 회원가입 / 로그아웃
+// 4. 인증 — 로그인 / 회원가입 / 로그아웃 / 비밀번호 재설정
 // ─────────────────────────────────────────────
 
 // [#1 추가] 로그인 핸들러 — index.html의 onclick="handleLogin()" 연결
@@ -320,6 +320,69 @@ window.handleLogout = function () {
         location.href = 'index.html';
     };
     modal.style.display = 'flex';
+};
+
+// ★ [추가] 비밀번호 재설정 핸들러
+// Supabase Auth REST API(/auth/v1/recover)를 직접 호출 — 별도 서버 파일 불필요
+// SUPABASE_URL / SUPABASE_ANON_KEY 는 클라이언트 노출이 허용된 공개 값입니다.
+// (민감한 Service Role Key와 다릅니다 — Vercel 환경변수 SUPABASE_KEY와 혼동 주의)
+window.handleResetPassword = async function () {
+    const email = document.getElementById('reset-email')?.value.trim();
+
+    if (!email) {
+        return showAlert('입력 오류', '이메일을 입력해주세요.');
+    }
+    // 간단한 이메일 형식 검사
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        return showAlert('입력 오류', '올바른 이메일 형식을 입력해주세요.');
+    }
+
+    // ★ 아래 두 값을 본인 Supabase 프로젝트 값으로 교체하세요.
+    // Supabase 대시보드 → Project Settings → API 에서 확인
+    const SUPABASE_URL      = 'https://YOUR_PROJECT_ID.supabase.co';  // ← 교체 필요
+    const SUPABASE_ANON_KEY = 'YOUR_ANON_KEY';                         // ← 교체 필요
+
+    // 재설정 완료 후 리다이렉트될 URL (Supabase 대시보드 URL Configuration과 일치해야 함)
+    const REDIRECT_URL = `${location.origin}/index.html`;
+
+    try {
+        const res = await fetch(`${SUPABASE_URL}/auth/v1/recover`, {
+            method : 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'apikey'      : SUPABASE_ANON_KEY
+            },
+            body: JSON.stringify({
+                email,
+                gotrue_meta_security: {},
+                redirect_to: REDIRECT_URL
+            })
+        });
+
+        // Supabase는 보안 정책상 이메일 존재 여부와 무관하게 항상 200을 반환합니다.
+        // (계정 존재 여부 노출 방지)
+        if (res.ok || res.status === 200) {
+            showAlert(
+                '📧 메일 발송 완료',
+                `${email} 로 재설정 링크를 발송했습니다.\n\n` +
+                '이메일함(스팸함 포함)을 확인해주세요.\n' +
+                '링크는 1시간 후 만료됩니다.'
+            );
+            // 모달 확인 후 로그인 탭으로 이동
+            const confirmBtn = document.getElementById('modal-confirm-btn');
+            if (confirmBtn) {
+                confirmBtn.onclick = () => {
+                    closeCustomModal();
+                    if (typeof switchTab === 'function') switchTab('login');
+                };
+            }
+        } else {
+            const errData = await res.json().catch(() => ({}));
+            throw new Error(errData.msg || errData.message || '요청 실패');
+        }
+    } catch (e) {
+        showAlert('오류', '잠시 후 다시 시도해주세요.\n(' + e.message + ')');
+    }
 };
 
 // ─────────────────────────────────────────────
