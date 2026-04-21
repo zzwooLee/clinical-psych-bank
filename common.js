@@ -532,6 +532,19 @@ window.checkAnswer = function (selected) {
             <div style="text-align:left;background:#f0f4ff;border-left:4px solid #364d79;padding:15px;border-radius:8px;margin-top:15px;">
                 <strong>💡 해설:</strong><br>${q.explanation}
             </div>`;
+    } else if (currentUser.status === 'free') {
+        // ★ [추가] free 유저: 해설 없음 → 업그레이드 유도 배너
+        resultHTML += `
+            <div style="text-align:center;background:linear-gradient(135deg,#fff8e1,#fef3c7);
+                        border:1px dashed #f6c90e;padding:18px;border-radius:10px;margin-top:15px;">
+                <div style="font-size:1rem;font-weight:700;color:#92700a;margin-bottom:6px;">
+                    🔒 이 문제의 해설은 프리미엄 전용입니다
+                </div>
+                <div style="font-size:0.85rem;color:#78591e;line-height:1.6;">
+                    프리미엄으로 업그레이드하면<br>
+                    2014~2019년 최신 기출 + 전체 문제 해설을 이용할 수 있습니다.
+                </div>
+            </div>`;
     }
     resultBox.innerHTML     = resultHTML;
     resultBox.style.display = 'block';
@@ -559,6 +572,7 @@ window.toggleAdminPanel = function () {
         adminBtn.innerText = '✕ 대시보드 닫기';
         loadAdminStats();
         loadUserList();
+        loadVerifyStats(); // ★ [추가]
     } else {
         adminPanel.style.display = 'none';
         if (filterBar)    filterBar.style.display    = 'flex';
@@ -621,11 +635,52 @@ async function loadUserList() {
     } catch (e) { console.error('유저 목록 로드 실패', e); }
 }
 
+// ★ [추가] 검수 현황 통계 로드
+async function loadVerifyStats() {
+    try {
+        const response = await fetch('/api/admin/verify-stats', {
+            method : 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body   : JSON.stringify({ userStatus: currentUser.status })
+        });
+        const stats = await response.json();
+        const el = document.getElementById('stat-verify-status');
+        if (el) el.innerText =
+            `검수완료 ${(stats.verified || 0).toLocaleString()} / 미검수 ${(stats.unverified || 0).toLocaleString()}`;
+    } catch (e) { console.error('검수 통계 실패', e); }
+}
+
+// ★ [추가] 문제 검수 상태 토글 — admin 전용
+// n8n이 해설 작성 후 is_verified = false 로 저장
+// 관리자가 검수 완료 후 이 함수로 true 로 변경
+window.toggleVerified = async function (questionId, currentState) {
+    const newState = !currentState;
+    try {
+        const response = await fetch('/api/admin/update-question', {
+            method : 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body   : JSON.stringify({
+                questionId : questionId,
+                is_verified: newState,
+                userStatus : currentUser.status
+            })
+        });
+        if (response.ok) {
+            showAlert(
+                newState ? '✅ 검수 완료' : '↩️ 검수 취소',
+                newState ? '문제가 프리미엄 유저에게 노출됩니다.' : '문제가 숨김 처리되었습니다.'
+            );
+            await loadVerifyStats();
+        }
+    } catch (e) { showAlert('오류', '통신 실패'); }
+};
+
 window.refreshAdminDashboard = async function () {
     const btn = document.querySelector('.btn-refresh-stats');
     if (btn) btn.innerText = '로딩 중...';
     await loadAdminStats();
     await loadUserList();
+    await loadVerifyStats();
     if (btn) btn.innerText = '🔄 데이터 새로고침';
 };
 
