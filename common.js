@@ -1,5 +1,3 @@
-/* common.js */
-
 // ─────────────────────────────────────────────
 // 0. 자동 로그아웃 모듈
 //    · 비활동 30분 경과 시 자동 로그아웃
@@ -229,8 +227,8 @@ window.handleSignUp = async function () {
     const email    = document.getElementById('signup-email')?.value.trim();
     const password = document.getElementById('signup-password')?.value;
 
-    if (!name)              return showAlert('입력 오류', '이름을 입력해주세요.');
-    if (name.length > 20)   return showAlert('입력 오류', '이름은 20자 이내로 입력해주세요.');
+    if (!name)               return showAlert('입력 오류', '이름을 입력해주세요.');
+    if (name.length > 20)    return showAlert('입력 오류', '이름은 20자 이내로 입력해주세요.');
     if (!email || !password) return showAlert('입력 오류', '이메일과 비밀번호를 입력해주세요.');
     if (password.length < 6) return showAlert('입력 오류', '비밀번호는 6자 이상이어야 합니다.');
 
@@ -302,7 +300,6 @@ window.handleResetPassword = async function () {
 
         // Supabase 보안 정책: 이메일 존재 여부와 무관하게 항상 200 반환
         if (res.ok || res.status === 200) {
-            // 모달로 안내 후 [확인] 클릭 시 로그인 탭으로 이동
             const modal = document.getElementById('custom-modal');
             if (modal) {
                 document.getElementById('modal-title').innerText = '📧 메일 발송 완료';
@@ -340,18 +337,17 @@ window.handleResetPassword = async function () {
 // · access_token을 sessionStorage에 임시 저장 → 비밀번호 변경 시 사용
 // · 보안: URL 해시는 서버로 전송되지 않으므로 토큰 노출 위험 없음
 function _checkRecoveryToken() {
-    const hash   = location.hash;          // "#access_token=...&type=recovery"
+    const hash = location.hash;   // "#access_token=...&type=recovery"
     if (!hash || !hash.includes('type=recovery')) return;
 
-    // URL 해시 파싱
-    const params       = new URLSearchParams(hash.replace('#', ''));
-    const accessToken  = params.get('access_token');
+    const params      = new URLSearchParams(hash.replace('#', ''));
+    const accessToken = params.get('access_token');
     const refreshToken = params.get('refresh_token');
-    const tokenType    = params.get('type');         // 'recovery'
+    const tokenType   = params.get('type');   // 'recovery'
 
     if (tokenType !== 'recovery' || !accessToken) return;
 
-    // 토큰을 임시 보관 (비밀번호 변경 API 호출에 사용)
+    // 토큰 임시 보관 (비밀번호 변경 API 호출에 사용)
     sessionStorage.setItem('recovery_access_token',  accessToken);
     sessionStorage.setItem('recovery_refresh_token', refreshToken || '');
 
@@ -376,24 +372,22 @@ function _checkRecoveryToken() {
 // ─────────────────────────────────────────────
 // 4-C. ★ [추가] 새 비밀번호 저장
 // ─────────────────────────────────────────────
-// · sessionStorage에 임시 저장된 access_token으로 Supabase /auth/v1/user PATCH 호출
+// · sessionStorage에 임시 저장된 access_token으로 Supabase /auth/v1/user PUT 호출
 // · 성공 시 토큰 삭제 → 로그인 탭으로 이동
 window.handleSetNewPassword = async function () {
-    const newPw      = document.getElementById('new-password')?.value;
-    const confirmPw  = document.getElementById('new-password-confirm')?.value;
-    const token      = sessionStorage.getItem('recovery_access_token');
+    const newPw     = document.getElementById('new-password')?.value;
+    const confirmPw = document.getElementById('new-password-confirm')?.value;
+    const token     = sessionStorage.getItem('recovery_access_token');
 
-    if (!newPw)            return showAlert('입력 오류', '새 비밀번호를 입력해주세요.');
-    if (newPw.length < 6)  return showAlert('입력 오류', '비밀번호는 6자 이상이어야 합니다.');
+    if (!newPw)              return showAlert('입력 오류', '새 비밀번호를 입력해주세요.');
+    if (newPw.length < 6)    return showAlert('입력 오류', '비밀번호는 6자 이상이어야 합니다.');
     if (newPw !== confirmPw) return showAlert('입력 오류', '비밀번호가 일치하지 않습니다.\n다시 확인해주세요.');
-    if (!token)            return showAlert('오류', '인증 토큰이 없습니다.\n재설정 이메일 링크를 다시 클릭해주세요.');
+    if (!token)              return showAlert('오류', '인증 토큰이 없습니다.\n재설정 이메일 링크를 다시 클릭해주세요.');
 
     const btn = document.getElementById('btn-set-password');
     if (btn) { btn.disabled = true; btn.textContent = '변경 중...'; }
 
     try {
-        // Supabase REST API: 비밀번호 업데이트
-        // Authorization 헤더에 access_token 전달
         const res = await fetch(`${_SUPABASE_URL}/auth/v1/user`, {
             method : 'PUT',
             headers: {
@@ -409,7 +403,6 @@ window.handleSetNewPassword = async function () {
             sessionStorage.removeItem('recovery_access_token');
             sessionStorage.removeItem('recovery_refresh_token');
 
-            // 성공 모달 → [확인] 클릭 시 로그인 탭으로 이동
             const modal = document.getElementById('custom-modal');
             if (modal) {
                 document.getElementById('modal-title').innerText = '✅ 변경 완료';
@@ -430,9 +423,9 @@ window.handleSetNewPassword = async function () {
                 sessionStorage.removeItem('recovery_access_token');
                 sessionStorage.removeItem('recovery_refresh_token');
                 showAlert(
-                    '링크 만료',
+                    '⏱️ 링크 만료',
                     '재설정 링크가 만료되었습니다.(유효시간 1시간)\n' +
-                    '"비밀번호 재설정" 을 다시 요청해주세요.'
+                    '"비밀번호 재설정"을 다시 요청해주세요.'
                 );
                 document.getElementById('modal-confirm-btn').onclick = () => {
                     closeCustomModal();
@@ -604,8 +597,13 @@ async function loadUserList() {
             const tr            = document.createElement('tr');
             const uStatus       = user.user_status || 'free';
             const expiryDisplay = user.expiry_date ? user.expiry_date.split('T')[0] : '-';
+            // ★ [추가] 이름이 없는 경우 '-' 표시
+            const nameDisplay   = user.name ? user.name : '<span style="color:#a0aec0;">-</span>';
+
             tr.innerHTML = `
-                <td style="text-align:left; padding-left:15px;">${user.email}</td>
+                <!-- ★ [추가] 이름 컬럼 -->
+                <td style="text-align:left; padding-left:15px; font-weight:500;">${nameDisplay}</td>
+                <td style="text-align:left;">${user.email}</td>
                 <td style="text-align:center;"><span class="badge-${uStatus}">${uStatus.toUpperCase()}</span></td>
                 <td style="text-align:center;">${expiryDisplay}</td>
                 <td style="text-align:center;">
