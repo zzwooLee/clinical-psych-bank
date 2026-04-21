@@ -35,6 +35,10 @@
     {
       "source": "/api/send-mail",
       "destination": "/api/send-mail.js"
+    },
+    {
+      "source": "/api/update-expiry",
+      "destination": "/api/update-expiry.js"
     }
   ]
 }
