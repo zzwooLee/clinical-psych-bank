@@ -53,6 +53,11 @@ export default async function handler(req, res) {
         return res.status(405).json({ message: 'Method Not Allowed' });
     }
 
+    // ★ [추가] 캐시 방지 헤더
+    // POST 요청임에도 304 캐시가 반환되는 문제를 방지
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+
     // userStatus 파싱 — body가 없으면 'free' 기본값
     const userStatus = req.body?.userStatus || 'free';
 
