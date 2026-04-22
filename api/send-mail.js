@@ -1,3 +1,9 @@
+// send-mail.js
+// [FIX-1] JWT 인증 추가 — 비인증 사용자의 임의 Slack 알림 발송 차단
+// [FIX-2] 본인 이메일 강제 사용 — body의 userEmail 대신 JWT에서 확인한 이메일 사용
+//         (타인 이메일로 신청하는 공격 방지)
+// [FIX-3] verifyUser 헬퍼 추가 (questions.js / admin.js와 동일한 패턴)
+
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
@@ -5,20 +11,68 @@ const supabase = createClient(
   process.env.SUPABASE_KEY
 );
 
+// ─────────────────────────────────────────────────────────────────
+// [FIX-1] JWT 검증 헬퍼
+// ─────────────────────────────────────────────────────────────────
+async function verifyUser(req) {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) return null;
+
+    const token = authHeader.split(' ')[1];
+
+    const { data: { user }, error } = await supabase.auth.getUser(token);
+    if (error || !user) {
+      console.warn('[send-mail.js] JWT 검증 실패:', error?.message);
+      return null;
+    }
+
+    const { data: profile, error: profileError } = await supabase
+      .from('users')
+      .select('id, email, name, user_status')
+      .eq('id', user.id)
+      .single();
+
+    if (profileError || !profile) {
+      console.warn('[send-mail.js] users 조회 실패:', profileError?.message);
+      return null;
+    }
+
+    return {
+      id        : profile.id,
+      email     : profile.email || user.email,
+      name      : profile.name  || '',
+      userStatus: profile.user_status || 'free'
+    };
+  } catch (e) {
+    console.warn('[send-mail.js] verifyUser 예외:', e.message);
+    return null;
+  }
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ message: 'Method Not Allowed' });
   }
 
-  const { userEmail, userName } = req.body;
+  // [FIX-1] JWT 인증 검증 — 비인증 접근 차단
+  const verified = await verifyUser(req);
+  if (!verified) {
+    return res.status(401).json({ message: 'Unauthorized: 로그인 후 이용해주세요.' });
+  }
+
+  // [FIX-2] 이메일과 이름은 JWT에서 검증된 값을 사용 — body 값은 신뢰하지 않음
+  const userEmail = verified.email;
+  const userName  = verified.name;
+  const userId    = verified.id;
+
   if (!userEmail) {
-    return res.status(400).json({ message: '사용자 이메일이 없습니다.' });
+    return res.status(400).json({ message: '사용자 이메일 정보를 가져올 수 없습니다.' });
   }
 
   const slackToken   = process.env.SLACK_BOT_TOKEN;
   const slackChannel = process.env.SLACK_CHANNEL_ID;
 
-  // ── 환경변수 누락 체크 ──
   const missing = [];
   if (!slackToken)   missing.push('SLACK_BOT_TOKEN');
   if (!slackChannel) missing.push('SLACK_CHANNEL_ID');
@@ -29,20 +83,9 @@ export default async function handler(req, res) {
   }
 
   try {
-    // ── Supabase에서 userId 조회 ──
-    const { data: userRows, error: dbError } = await supabase
-      .from('users')
-      .select('id')
-      .eq('email', userEmail)
-      .limit(1);
-
-    if (dbError) throw new Error(`DB 조회 실패: ${dbError.message}`);
-
-    const userId      = userRows?.[0]?.id || '';
     const today       = new Date().toLocaleDateString('ko-KR');
     const actionValue = JSON.stringify({ userId, userEmail, userName });
 
-    // Slack 메시지 구성
     const slackBody = {
       channel: slackChannel,
       blocks: [
@@ -75,7 +118,6 @@ export default async function handler(req, res) {
       ]
     };
 
-    // ── Slack API 호출 ──
     const slackRes  = await fetch('https://slack.com/api/chat.postMessage', {
       method : 'POST',
       headers: {
@@ -86,12 +128,9 @@ export default async function handler(req, res) {
     });
 
     const slackData = await slackRes.json();
-
-    // Slack 응답 전체를 로그로 출력 (Vercel 로그에서 확인 가능)
     console.log('Slack response:', JSON.stringify(slackData));
 
     if (!slackData.ok) {
-      // Slack 오류 코드를 그대로 반환
       return res.status(500).json({
         message: `Slack 오류: ${slackData.error}`,
         detail : slackData
