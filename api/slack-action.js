@@ -1,14 +1,8 @@
 // slack-action.js
-// [SEC-6] Slack 서명 검증(HMAC-SHA256) 재추가
-//         · SLACK_SIGNING_SECRET 환경변수 필요
-//         · Vercel에서 req.body가 파싱된 이후 raw body가 사라지는 문제 해결:
-//           vercel.json 또는 이 파일에서 bodyParser를 비활성화하고
-//           raw body를 직접 읽어 서명 검증에 사용합니다.
-//         · 5분 이상 된 요청은 재전송 공격으로 간주해 거부합니다.
-//         · 서명 검증 실패 시 403 반환 (기존: 검증 없이 통과)
-//
-// [중요] Vercel에서 raw body를 읽으려면 이 함수의 bodyParser를 꺼야 합니다.
-//        아래 export config 블록이 반드시 있어야 합니다.
+// [FIX-1] action.value JSON.parse 실패 시 개별 try/catch로 안전하게 처리
+//         — 기존: outer try/catch로만 처리 → 200 응답 후 Slack 재시도 루프 발생 가능
+//         — 수정: parse 실패 시 actionData = {} 로 안전하게 폴백
+// [SEC-6] Slack 서명 검증(HMAC-SHA256) 유지
 
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
@@ -18,11 +12,7 @@ const supabase = createClient(
   process.env.SUPABASE_KEY
 );
 
-// ─────────────────────────────────────────────────────────────────
-// [SEC-6] Vercel bodyParser 비활성화
-// raw body를 직접 읽어 Slack 서명 검증에 사용합니다.
-// 이 설정이 없으면 req 스트림이 이미 소비되어 raw body를 읽을 수 없습니다.
-// ─────────────────────────────────────────────────────────────────
+// Vercel bodyParser 비활성화 — raw body로 Slack 서명 검증
 export const config = {
   api: {
     bodyParser: false
@@ -42,8 +32,7 @@ function getRawBody(req) {
 }
 
 // ─────────────────────────────────────────────────────────────────
-// [SEC-6] Slack 서명 검증
-// 공식 문서: https://api.slack.com/authentication/verifying-requests-from-slack
+// Slack 서명 검증 (HMAC-SHA256)
 // ─────────────────────────────────────────────────────────────────
 function verifySlackSignature(rawBody, headers) {
   const signingSecret = process.env.SLACK_SIGNING_SECRET;
@@ -52,8 +41,8 @@ function verifySlackSignature(rawBody, headers) {
     return false;
   }
 
-  const timestamp     = headers['x-slack-request-timestamp'];
-  const slackSig      = headers['x-slack-signature'];
+  const timestamp = headers['x-slack-request-timestamp'];
+  const slackSig  = headers['x-slack-signature'];
 
   if (!timestamp || !slackSig) {
     console.warn('[slack-action] 서명 헤더 없음');
@@ -67,20 +56,17 @@ function verifySlackSignature(rawBody, headers) {
     return false;
   }
 
-  // HMAC-SHA256 서명 생성
   const sigBaseString = `v0:${timestamp}:${rawBody.toString()}`;
   const hmac          = crypto.createHmac('sha256', signingSecret);
   hmac.update(sigBaseString);
   const mySignature = `v0=${hmac.digest('hex')}`;
 
-  // timing-safe 비교 (타이밍 공격 방지)
   try {
     return crypto.timingSafeEqual(
-      Buffer.from(mySignature,  'utf8'),
-      Buffer.from(slackSig,     'utf8')
+      Buffer.from(mySignature, 'utf8'),
+      Buffer.from(slackSig,    'utf8')
     );
   } catch {
-    // 길이가 다르면 timingSafeEqual이 throw — 서명 불일치로 처리
     return false;
   }
 }
@@ -120,7 +106,7 @@ async function sendEmail({ to, subject, html }) {
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
-  // ── [SEC-6] raw body 읽기 ────────────────────────────────────
+  // raw body 읽기
   let rawBody;
   try {
     rawBody = await getRawBody(req);
@@ -129,25 +115,24 @@ export default async function handler(req, res) {
     return res.status(400).end();
   }
 
-  // ── [SEC-6] Slack 서명 검증 ──────────────────────────────────
+  // Slack 서명 검증
   if (!verifySlackSignature(rawBody, req.headers)) {
     console.error('[slack-action] 서명 검증 실패 — 요청 거부');
     return res.status(403).end();
   }
 
-  // ── body 파싱 (bodyParser 비활성화 상태이므로 수동 파싱) ─────
   const rawBodyStr = rawBody.toString('utf8');
 
   console.log('[slack-action] 요청 수신 (서명 검증 통과)');
   console.log('[slack-action] Content-Type:', req.headers['content-type']);
 
   try {
-    // payload 파싱: application/x-www-form-urlencoded 형태로 전달됨
+    // payload 파싱
     let payload;
     const contentType = req.headers['content-type'] || '';
 
     if (contentType.includes('application/x-www-form-urlencoded')) {
-      const params = new URLSearchParams(rawBodyStr);
+      const params     = new URLSearchParams(rawBodyStr);
       const payloadStr = params.get('payload');
       if (!payloadStr) {
         console.error('[slack-action] payload 파라미터 없음');
@@ -159,9 +144,8 @@ export default async function handler(req, res) {
       payload = JSON.parse(rawBodyStr);
       console.log('[slack-action] payload 파싱 성공 (json)');
     } else {
-      // 폴백: urlencoded 시도 후 JSON 시도
       try {
-        const params = new URLSearchParams(rawBodyStr);
+        const params     = new URLSearchParams(rawBodyStr);
         const payloadStr = params.get('payload');
         payload = payloadStr ? JSON.parse(payloadStr) : JSON.parse(rawBodyStr);
         console.log('[slack-action] payload 파싱 성공 (폴백)');
@@ -173,20 +157,31 @@ export default async function handler(req, res) {
 
     console.log('[slack-action] payload.type:', payload?.type);
 
-    // Slack URL 검증
     if (payload?.type === 'url_verification') {
       return res.status(200).json({ challenge: payload.challenge });
     }
 
     const action      = payload?.actions?.[0];
     const actionId    = action?.action_id;
-    const actionData  = JSON.parse(action?.value || '{}');
-    const userId      = actionData.userId;
-    const userEmail   = actionData.userEmail;
-    const userName    = actionData.userName;
     const responseUrl = payload?.response_url;
     const adminEmail  = process.env.ADMIN_EMAIL;
     const serviceName = '임상심리사 퀴즈 뱅크';
+
+    // [FIX-1] action.value JSON.parse를 개별 try/catch로 감싸 안전하게 처리
+    //         기존: JSON.parse(action?.value || '{}') — 잘못된 JSON이면 throw
+    //         수정: parse 실패 시 빈 객체로 폴백하여 핸들러 크래시 방지
+    let actionData = {};
+    try {
+      actionData = JSON.parse(action?.value || '{}');
+    } catch (parseErr) {
+      console.error('[slack-action] action.value 파싱 실패:', parseErr.message, '/ raw value:', action?.value);
+      // 파싱 실패 시 처리 불가 — 200으로 응답하여 Slack 재시도 방지
+      return res.status(200).end();
+    }
+
+    const userId    = actionData.userId;
+    const userEmail = actionData.userEmail;
+    const userName  = actionData.userName;
 
     console.log('[slack-action] actionId:', actionId);
     console.log('[slack-action] userEmail:', userEmail);
@@ -200,7 +195,7 @@ export default async function handler(req, res) {
 
     // ── 승인 처리 ──────────────────────────────────────────────
     if (actionId === 'approve_premium') {
-      const expiry = new Date();
+      const expiry    = new Date();
       expiry.setMonth(expiry.getMonth() + 1);
       const expiryStr = expiry.toLocaleDateString('ko-KR');
 
