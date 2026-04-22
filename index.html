@@ -259,10 +259,19 @@
         // 페이지 로드 시 이 파라미터가 있으면 새 비밀번호 입력 폼으로 자동 진입합니다.
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         document.addEventListener('DOMContentLoaded', () => {
-            const params = new URLSearchParams(location.search);
-            const type   = params.get('type');
+            // [FIX-Critical] Supabase Legacy 플로우는 토큰을 hash fragment(#access_token=...)로 전달합니다.
+            // location.search만 읽으면 Legacy 플로우에서 new-password 폼으로 자동 진입이 실패합니다.
+            // URLSearchParams는 '#' 이후를 무시하므로 hash를 별도로 파싱합니다.
+            const searchParams = new URLSearchParams(location.search);
+            const hashParams   = new URLSearchParams(location.hash.replace(/^#/, ''));
+
+            const type  = searchParams.get('type') || hashParams.get('type');
             // token_hash: PKCE 플로우 (권장), access_token: Legacy 플로우
-            const token  = params.get('token_hash') || params.get('access_token');
+            // 두 플로우 모두 search와 hash 양쪽에서 탐색합니다.
+            const token = searchParams.get('token_hash')
+                || hashParams.get('token_hash')
+                || hashParams.get('access_token')
+                || searchParams.get('access_token');
 
             if (type === 'recovery' && token) {
                 // guest-view가 표시된 상태에서 new-password 폼으로 전환
