@@ -1,8 +1,11 @@
 // slack-action.js
-// [FIX-1] action.value JSON.parse 실패 시 개별 try/catch로 안전하게 처리
-//         — 기존: outer try/catch로만 처리 → 200 응답 후 Slack 재시도 루프 발생 가능
-//         — 수정: parse 실패 시 actionData = {} 로 안전하게 폴백
+// [FIX-1] action.value JSON.parse 실패 시 개별 try/catch로 안전하게 처리 (기존 유지)
 // [SEC-6] Slack 서명 검증(HMAC-SHA256) 유지
+// [FIX-2] 승인 처리: DB 업데이트 성공 여부를 dbSuccess 플래그로 추적
+//         id와 email 두 번의 fallback이 모두 실패하면 승인 메일 미발송 + Slack에 실패 표시
+//         기존: 양쪽 모두 실패해도 승인 메일 발송 및 Slack "✅ 승인 완료" 표시 — 데이터 불일치
+// [주의]  승인 만료일은 현재 1개월 고정입니다. 유연한 기간 처리가 필요하면
+//         /api/update-expiry 엔드포인트 활용을 권장합니다.
 
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
@@ -168,14 +171,11 @@ export default async function handler(req, res) {
     const serviceName = '임상심리사 퀴즈 뱅크';
 
     // [FIX-1] action.value JSON.parse를 개별 try/catch로 감싸 안전하게 처리
-    //         기존: JSON.parse(action?.value || '{}') — 잘못된 JSON이면 throw
-    //         수정: parse 실패 시 빈 객체로 폴백하여 핸들러 크래시 방지
     let actionData = {};
     try {
       actionData = JSON.parse(action?.value || '{}');
     } catch (parseErr) {
       console.error('[slack-action] action.value 파싱 실패:', parseErr.message, '/ raw value:', action?.value);
-      // 파싱 실패 시 처리 불가 — 200으로 응답하여 Slack 재시도 방지
       return res.status(200).end();
     }
 
@@ -195,27 +195,58 @@ export default async function handler(req, res) {
 
     // ── 승인 처리 ──────────────────────────────────────────────
     if (actionId === 'approve_premium') {
+      // [주의] 만료일은 현재 승인 시점 기준 1개월 고정입니다.
+      // 유연한 기간 처리가 필요하면 /api/update-expiry 엔드포인트 활용을 권장합니다.
       const expiry    = new Date();
       expiry.setMonth(expiry.getMonth() + 1);
       const expiryStr = expiry.toLocaleDateString('ko-KR');
 
       console.log('[slack-action] 승인 처리 시작 — 만료일:', expiryStr);
 
+      // [FIX-2] dbSuccess 플래그로 DB 업데이트 성공 여부를 추적합니다.
+      // id와 email 두 번의 fallback이 모두 실패하면 승인 메일을 발송하지 않고
+      // Slack 메시지도 실패로 표시하여 데이터 불일치를 방지합니다.
+      let dbSuccess = false;
+
       const { error } = await supabase
         .from('users')
         .update({ user_status: 'premium', expiry_date: expiry.toISOString() })
         .eq('id', userId);
 
-      if (error) {
+      if (!error) {
+        dbSuccess = true;
+        console.log('[slack-action] DB 업데이트 성공 (id)');
+      } else {
         console.error('[slack-action] DB 업데이트 실패 (id):', error.message);
+
+        // id로 실패 시 email로 재시도
         const { error: e2 } = await supabase
           .from('users')
           .update({ user_status: 'premium', expiry_date: expiry.toISOString() })
           .eq('email', userEmail);
-        if (e2) console.error('[slack-action] DB 업데이트 실패 (email):', e2.message);
-        else    console.log('[slack-action] DB 업데이트 성공 (email)');
-      } else {
-        console.log('[slack-action] DB 업데이트 성공 (id)');
+
+        if (!e2) {
+          dbSuccess = true;
+          console.log('[slack-action] DB 업데이트 성공 (email fallback)');
+        } else {
+          console.error('[slack-action] DB 업데이트 실패 (email fallback):', e2.message);
+        }
+      }
+
+      // [FIX-2] DB 업데이트 실패 시 메일 미발송 + Slack 실패 메시지 표시
+      if (!dbSuccess) {
+        console.error('[slack-action] DB 업데이트 최종 실패 — 승인 메일 미발송');
+        await fetch(responseUrl, {
+          method : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body   : JSON.stringify({
+            replace_original: true,
+            blocks: [{ type: 'section', text: { type: 'mrkdwn',
+              text: `⚠️ *DB 업데이트 실패 — 수동 처리 필요*\n${userName || userEmail} (${userEmail})\n관리자 대시보드에서 직접 등급을 변경해주세요.`
+            }}]
+          })
+        });
+        return res.status(200).end();
       }
 
       await sendEmail({
