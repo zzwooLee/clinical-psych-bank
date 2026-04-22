@@ -1,5 +1,14 @@
 /* common.js */
 
+// ─────────────────────────────────────────────────────────────────
+// [FIX-Critical-③] STORAGE_KEY를 모듈 최상위(전역 스코프)로 이동
+// · setupAutoLogout IIFE 내부에만 있으면 handleLogout 등
+//   외부 함수에서 하드코딩된 문자열에 의존해야 하므로 일치 보장 불가
+// · window._quizStorageKey로도 노출하여 외부 스크립트에서 참조 가능
+// ─────────────────────────────────────────────────────────────────
+const QUIZ_STORAGE_KEY = 'quiz_last_active';
+window._quizStorageKey = QUIZ_STORAGE_KEY;
+
 // ─────────────────────────────────────────────
 // 0. 자동 로그아웃 모듈
 //    · 비활동 30분 경과 시 자동 로그아웃
@@ -11,7 +20,8 @@
     const WARN_MS     =  2 * 60 * 1000;  // 만료 몇 ms 전에 경고 : 2분
     const CHECK_MS    =      60 * 1000;  // 주기적 체크 간격   : 1분
     const THROTTLE_MS =      30 * 1000;  // 활동 갱신 throttle : 30초
-    const STORAGE_KEY = 'quiz_last_active';
+    // [FIX-High-③] STORAGE_KEY를 상단 전역 상수(QUIZ_STORAGE_KEY)로 참조
+    const STORAGE_KEY = QUIZ_STORAGE_KEY;
 
     let warnInterval  = null;
     let checkInterval = null;
@@ -134,15 +144,16 @@
         if (Date.now() - lastActive >= TIMEOUT_MS) { forceLogout(); }
     });
 
-    /* ── 페이지 로드 후 초기화 ── */
-    // [FIX-주의] setupAutoLogout IIFE 내부에서만 DOMContentLoaded를 등록합니다.
-    // 전역 DOMContentLoaded(아래 섹션 2)와 중복 등록을 피하기 위해
-    // 여기서는 자동 로그아웃 초기화만 담당합니다.
-    document.addEventListener('DOMContentLoaded', () => {
+    /* ── 페이지 로드 후 초기화 (공개 함수로 노출) ── */
+    // [FIX-Critical-③] 기존: IIFE 내부 DOMContentLoaded + 섹션2 DOMContentLoaded 두 곳 등록
+    // → 실행 순서가 암묵적으로 결합되어 향후 확장 시 타이밍 버그 유발
+    // 수정: 초기화 로직을 window._initAutoLogout으로 노출하고,
+    //       섹션2의 단일 DOMContentLoaded에서 명시적 순서로 호출합니다.
+    window._initAutoLogout = function () {
         if (!sessionStorage.getItem('quiz_user')) return;
         resetActivity();
         startCheck();
-    });
+    };
 
     /* ── 외부에서 호출: "계속하기" 버튼 ── */
     // extendSession은 경고 모달의 버튼에서만 호출되므로 모달은 항상 열려 있습니다.
@@ -193,7 +204,14 @@ function authHeaders() {
 // ─────────────────────────────────────────────
 // 2. 초기 로드 및 UI 업데이트
 // ─────────────────────────────────────────────
+// [FIX-Critical-③] 단일 DOMContentLoaded로 통합
+// · 기존 두 곳(setupAutoLogout IIFE + 섹션2)에 분산된 초기화를
+//   여기서 명시적 순서대로 호출합니다:
+//   1) updateUserUI()       — currentUser 파싱 및 UI 반영
+//   2) _initAutoLogout()    — 세션 활동 초기화 및 타이머 시작
+// ─────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
+    // 1) UI 업데이트 먼저
     updateUserUI();
 
     if (currentUser.status === 'admin') {
@@ -209,6 +227,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const infoEl = document.getElementById('user-display-info');
         const displayName = currentUser.name || currentUser.email;
         if (infoEl) infoEl.innerText = `${displayName} (${(currentUser.status || 'free').toUpperCase()})`;
+    }
+
+    // 2) 자동 로그아웃 초기화 — UI 파싱 완료 후 실행
+    if (typeof window._initAutoLogout === 'function') {
+        window._initAutoLogout();
     }
 });
 
@@ -281,7 +304,8 @@ window.handleLogin = async function () {
         sessionStorage.setItem('quiz_user', JSON.stringify(userData));
         currentUser = userData;
 
-        sessionStorage.setItem('quiz_last_active', Date.now());
+        // [FIX-High-③] 전역 상수 참조
+        sessionStorage.setItem(QUIZ_STORAGE_KEY, Date.now());
 
         if (typeof window._startAutoLogoutCheck === 'function') {
             window._startAutoLogoutCheck();
@@ -416,7 +440,8 @@ window.handleLogout = function () {
     if (!modal) {
         if (confirm('정말 로그아웃 하시겠습니까?')) {
             sessionStorage.removeItem('quiz_user');
-            sessionStorage.removeItem('quiz_last_active');
+            // [FIX-High-③] 하드코딩된 'quiz_last_active' → 전역 상수 QUIZ_STORAGE_KEY 참조
+            sessionStorage.removeItem(QUIZ_STORAGE_KEY);
             sessionStorage.removeItem('quiz_token');
             location.href = 'index.html';
         }
@@ -430,7 +455,8 @@ window.handleLogout = function () {
 
     document.getElementById('modal-confirm-btn').onclick = () => {
         sessionStorage.removeItem('quiz_user');
-        sessionStorage.removeItem('quiz_last_active');
+        // [FIX-High-③] 동일하게 전역 상수 참조
+        sessionStorage.removeItem(QUIZ_STORAGE_KEY);
         sessionStorage.removeItem('quiz_token');
         location.href = 'index.html';
     };
