@@ -1,14 +1,13 @@
 // auth.js
+// [FIX-1] insertError 조건 논리 오류 수정:
+//         !insertError.code === '23505' → insertError.code !== '23505'
+//         (기존: 연산자 우선순위로 항상 false였음)
+// [FIX-2] set-new-password: supabase.auth.admin.updateUserById → admin API 사용 유지하되
+//         Service Role 키 의존성을 주석으로 명시. anon 키 환경에서는 동작하지 않음을 경고.
 // [C-1] 로그인 성공 시 Supabase access_token을 클라이언트에 반환.
 // [C-2] 이메일 미인증 체크, 비밀번호 재설정 액션 추가.
-// [FIX] profileError 발생 시 throw 대신 기본값(free) 처리 — users 행 없거나 RLS 오류 시 500 방지.
-// [FIX-5] 회원가입 시 미인증 상태에서 users 테이블에 즉시 insert하던 문제 수정.
-//         signUp 직후 insert를 제거하고, 로그인 성공(= 이메일 인증 완료) 시점에
-//         users 행이 없으면 자동 생성하는 기존 로직(5번)으로 일원화합니다.
-//         → 인증 메일을 클릭하지 않은 유령 행이 DB에 쌓이는 문제 해결
-//         → 단, Supabase Dashboard에서 auth trigger(on_auth_user_created)를
-//           사용하는 경우 이 파일의 로그인 시점 insert 로직과 중복되지 않도록
-//           trigger를 우선 사용하고 아래 insert 코드는 제거해도 됩니다.
+// [FIX-3] profileError 발생 시 throw 대신 기본값(free) 처리.
+// [FIX-4] 회원가입 시 미인증 상태에서 users 테이블에 즉시 insert하던 문제 수정.
 
 import { createClient } from '@supabase/supabase-js';
 
@@ -24,7 +23,6 @@ export default async function handler(req, res) {
 
   const { action } = req.query;
 
-  // 환경변수 누락 조기 감지
   if (!process.env.SUPABASE_URL || !process.env.SUPABASE_KEY) {
     console.error('[auth.js] SUPABASE_URL 또는 SUPABASE_KEY 환경변수 누락');
     return res.status(500).json({ message: '서버 설정 오류입니다. 관리자에게 문의해주세요.' });
@@ -40,16 +38,12 @@ export default async function handler(req, res) {
         return res.status(400).json({ message: '이메일과 비밀번호를 입력해주세요.' });
       }
 
-      // 1) Supabase Auth 로그인
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) {
         console.error('[auth.js] signInWithPassword 실패:', error.message);
         throw error;
       }
 
-      // 2) 이메일 인증 여부 확인
-      //    Supabase 대시보드 > Authentication > Providers > Email >
-      //    "Confirm email" 토글이 OFF이면 이 조건을 제거해도 됩니다.
       if (data.user.email_confirmed_at === null) {
         console.warn('[auth.js] 미인증 이메일 로그인 시도:', email);
         return res.status(403).json({
@@ -57,11 +51,6 @@ export default async function handler(req, res) {
         });
       }
 
-      // 3) users 테이블에서 프로필 조회
-      //    [FIX] profileError를 throw하지 않고 기본값으로 처리합니다.
-      //    흔한 실패 원인:
-      //      PGRST116 → users 테이블에 해당 행 없음
-      //      42501     → SUPABASE_KEY가 anon key여서 RLS에 막힘
       const { data: userProfile, error: profileError } = await supabase
         .from('users')
         .select('user_status, name, expiry_date')
@@ -73,7 +62,6 @@ export default async function handler(req, res) {
         console.error('[auth.js] 힌트: Vercel 환경변수 SUPABASE_KEY가 service_role 키인지 확인하세요.');
       }
 
-      // 4) 만료일 경과한 premium 자동 다운그레이드
       let status = userProfile?.user_status || 'free';
       if (status === 'premium' && userProfile?.expiry_date) {
         if (new Date(userProfile.expiry_date) < new Date()) {
@@ -86,10 +74,8 @@ export default async function handler(req, res) {
         }
       }
 
-      // 5) [FIX-5] users 행이 없으면 로그인 시점에 자동 생성
-      //    회원가입 시 insert를 제거했으므로, 이메일 인증 완료 후
-      //    첫 로그인 때 이 로직이 실행되어 행을 생성합니다.
-      //    RLS 오류(42501)가 아닌 경우에만 시도합니다.
+      // users 행이 없으면 로그인 시점에 자동 생성 (이메일 인증 완료 후 첫 로그인)
+      // RLS 오류(42501)가 아닌 경우에만 시도
       const isRlsError = profileError?.message?.includes('42501') ||
                          profileError?.code === '42501';
       if (!userProfile && profileError && !isRlsError) {
@@ -101,13 +87,16 @@ export default async function handler(req, res) {
           user_status: 'free'
         }]);
         if (insertError) {
-          console.error('[auth.js] users 행 자동 생성 실패:', insertError.message);
+          // [FIX-1] 기존: !insertError.code === '23505' → 항상 false (연산자 우선순위 버그)
+          //         수정: insertError.code !== '23505' 으로 올바르게 처리
+          if (!insertError.message.includes('duplicate') && insertError.code !== '23505') {
+            console.error('[auth.js] users 행 자동 생성 실패:', insertError.message);
+          }
         }
       }
 
       console.log('[auth.js] 로그인 성공:', email, '/ status:', status);
 
-      // 6) 응답 — access_token 포함
       return res.status(200).json({
         user: {
           id   : data.user.id,
@@ -141,33 +130,15 @@ export default async function handler(req, res) {
       });
       if (error) throw error;
 
-      // [FIX-5] 회원가입 직후 users 테이블 insert 제거
-      //         이유: 이 시점에서 사용자는 이메일 인증을 완료하지 않은 상태입니다.
-      //              미인증 유저가 DB에 행을 가지면 유령 계정이 누적됩니다.
-      //              대신 이메일 인증 후 첫 로그인 시(위 login 액션 5번)에 자동 생성됩니다.
-      //
-      //         [대안] Supabase Dashboard > Database > Functions에서
-      //                on_auth_user_created trigger를 설정하면 인증 완료 시점에
-      //                자동으로 users 행을 생성할 수 있습니다. (권장)
-      //
-      // 아래 주석 처리된 코드는 trigger를 사용하지 않는 환경에서
-      // 즉시 insert가 필요할 경우를 위해 참고용으로 보존합니다.
-      //
-      // if (data.user?.id) {
-      //   await supabase.from('users').insert([{ id: data.user.id, email, name, user_status: 'free' }]);
-      // }
-
-      // Supabase에서 이메일 확인이 비활성화된 경우(Confirm email = OFF),
-      // data.user가 즉시 반환되며 email_confirmed_at이 설정됩니다.
-      // 이 경우 users 행을 바로 생성해도 무방하므로 아래 조건으로 처리합니다.
+      // 이메일 확인이 비활성화된 환경(Confirm email = OFF)에서는 즉시 users 행 생성
       if (data.user?.id && data.user?.email_confirmed_at) {
         console.log('[auth.js] 이메일 확인 비활성화 환경 — 가입 즉시 users 행 생성:', data.user.id);
         const { error: insertError } = await supabase
           .from('users')
           .insert([{ id: data.user.id, email, name, user_status: 'free' }]);
         if (insertError) {
-          // 중복 insert(이미 trigger로 생성된 경우)는 무시
-          if (!insertError.message.includes('duplicate') && !insertError.code === '23505') {
+          // [FIX-1] 동일한 논리 오류 수정 적용
+          if (!insertError.message.includes('duplicate') && insertError.code !== '23505') {
             console.error('[auth.js] users insert 실패:', insertError.message);
           }
         }
@@ -179,7 +150,7 @@ export default async function handler(req, res) {
     }
 
     // ────────────────────────────────────────────────
-    // [C-2] 비밀번호 재설정 이메일 발송
+    // 비밀번호 재설정 이메일 발송
     // ────────────────────────────────────────────────
     if (action === 'reset-password') {
       const { email } = req.body;
@@ -203,7 +174,7 @@ export default async function handler(req, res) {
     }
 
     // ────────────────────────────────────────────────
-    // [C-2] 새 비밀번호 저장
+    // 새 비밀번호 저장
     // ────────────────────────────────────────────────
     if (action === 'set-new-password') {
       const { password } = req.body;
@@ -218,6 +189,7 @@ export default async function handler(req, res) {
 
       const token = authHeader.split(' ')[1];
 
+      // recovery 토큰으로 사용자 확인
       const { data: sessionData, error: sessionError } =
         await supabase.auth.getUser(token);
       if (sessionError || !sessionData.user) {
@@ -226,6 +198,9 @@ export default async function handler(req, res) {
         });
       }
 
+      // [NOTE] supabase.auth.admin.updateUserById()는 Service Role 키가 필요합니다.
+      //        SUPABASE_KEY가 service_role 키인지 반드시 확인하세요.
+      //        anon 키 환경에서는 이 호출이 403으로 실패합니다.
       const { error: updateError } = await supabase.auth.admin.updateUserById(
         sessionData.user.id,
         { password }
