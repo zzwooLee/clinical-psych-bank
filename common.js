@@ -1,11 +1,14 @@
 /* common.js */
+// ─────────────────────────────────────────────────────────────────
+// 수정 이력
+// [FIX-High-1] handleLogout — 로그아웃 시 btn-admin-menu 명시적 숨김 처리
+//              index.html에서 로그인→로그아웃→재로그인 시 admin 버튼이
+//              이전 display:inline-block 상태를 유지하는 문제 수정
+// [FIX-High-2] forceLogout (자동 로그아웃) — 동일하게 btn-admin-menu 숨김 처리
+// [기존 유지]  STORAGE_KEY 전역 상수화, setupAutoLogout 모듈,
+//              escapeHtml, authHeaders, 퀴즈 엔진, 관리자 기능 전체
+// ─────────────────────────────────────────────────────────────────
 
-// ─────────────────────────────────────────────────────────────────
-// [FIX-Critical-③] STORAGE_KEY를 모듈 최상위(전역 스코프)로 이동
-// · setupAutoLogout IIFE 내부에만 있으면 handleLogout 등
-//   외부 함수에서 하드코딩된 문자열에 의존해야 하므로 일치 보장 불가
-// · window._quizStorageKey로도 노출하여 외부 스크립트에서 참조 가능
-// ─────────────────────────────────────────────────────────────────
 const QUIZ_STORAGE_KEY = 'quiz_last_active';
 window._quizStorageKey = QUIZ_STORAGE_KEY;
 
@@ -16,11 +19,10 @@ window._quizStorageKey = QUIZ_STORAGE_KEY;
 //    · 탭 전환 후 복귀 시에도 즉시 체크
 // ─────────────────────────────────────────────
 (function setupAutoLogout() {
-    const TIMEOUT_MS  = 30 * 60 * 1000;  // 비활동 허용 시간 : 30분
-    const WARN_MS     =  2 * 60 * 1000;  // 만료 몇 ms 전에 경고 : 2분
-    const CHECK_MS    =      60 * 1000;  // 주기적 체크 간격   : 1분
-    const THROTTLE_MS =      30 * 1000;  // 활동 갱신 throttle : 30초
-    // [FIX-High-③] STORAGE_KEY를 상단 전역 상수(QUIZ_STORAGE_KEY)로 참조
+    const TIMEOUT_MS  = 30 * 60 * 1000;
+    const WARN_MS     =  2 * 60 * 1000;
+    const CHECK_MS    =      60 * 1000;
+    const THROTTLE_MS =      30 * 1000;
     const STORAGE_KEY = QUIZ_STORAGE_KEY;
 
     let warnInterval  = null;
@@ -35,9 +37,6 @@ window._quizStorageKey = QUIZ_STORAGE_KEY;
             warnModal.style.display = 'none';
             clearInterval(warnInterval);
             warnInterval = null;
-            // [FIX-Critical] 모달을 활동 이벤트로 닫을 때 checkInterval이 null인 채 방치되던 문제 수정
-            // showWarnModal()에서 clearInterval(checkInterval)을 호출하므로,
-            // 모달이 닫힐 때 반드시 startCheck()를 재시작해야 이후 세션 체크가 계속됩니다.
             startCheck();
         }
     }
@@ -58,6 +57,10 @@ window._quizStorageKey = QUIZ_STORAGE_KEY;
         const warnModal = document.getElementById('auto-logout-modal');
         if (warnModal) warnModal.style.display = 'none';
 
+        // [FIX-High-2] 자동 로그아웃 시에도 admin 버튼 숨김 처리
+        const adminBtn = document.getElementById('btn-admin-menu');
+        if (adminBtn) adminBtn.style.display = 'none';
+
         const path = location.pathname;
         if (!path.endsWith('index.html') && path !== '/' && path !== '') {
             location.href = 'index.html';
@@ -71,7 +74,6 @@ window._quizStorageKey = QUIZ_STORAGE_KEY;
 
     /* ── 경고 모달 표시 + 카운트다운 ── */
     function showWarnModal(remainSec) {
-        // 이전 warnInterval이 남아 있으면 먼저 클리어 — 중복 카운트다운 방지
         clearInterval(warnInterval);
         warnInterval = null;
 
@@ -113,7 +115,6 @@ window._quizStorageKey = QUIZ_STORAGE_KEY;
         }, CHECK_MS);
     }
 
-    // startCheck를 외부에서 호출 가능하도록 노출 (로그인 직후 호출용)
     window._startAutoLogoutCheck = startCheck;
 
     /* ── 유저 활동 이벤트 감지 ── */
@@ -121,15 +122,12 @@ window._quizStorageKey = QUIZ_STORAGE_KEY;
         document.addEventListener(evt, () => {
             if (!sessionStorage.getItem('quiz_user')) return;
 
-            // 경고 모달이 열려 있으면 throttle 없이 즉시 갱신 (모달 닫기 우선)
-            // resetActivity() 내부에서 startCheck()가 호출되므로 여기서 별도 호출 불필요
             const warnModal = document.getElementById('auto-logout-modal');
             if (warnModal && warnModal.style.display === 'flex') {
                 resetActivity();
                 return;
             }
 
-            // 일반 활동: 30초 throttle로 sessionStorage write 횟수 제한
             if (throttleTimer) return;
             resetActivity();
             throttleTimer = setTimeout(() => { throttleTimer = null; }, THROTTLE_MS);
@@ -144,21 +142,12 @@ window._quizStorageKey = QUIZ_STORAGE_KEY;
         if (Date.now() - lastActive >= TIMEOUT_MS) { forceLogout(); }
     });
 
-    /* ── 페이지 로드 후 초기화 (공개 함수로 노출) ── */
-    // [FIX-Critical-③] 기존: IIFE 내부 DOMContentLoaded + 섹션2 DOMContentLoaded 두 곳 등록
-    // → 실행 순서가 암묵적으로 결합되어 향후 확장 시 타이밍 버그 유발
-    // 수정: 초기화 로직을 window._initAutoLogout으로 노출하고,
-    //       섹션2의 단일 DOMContentLoaded에서 명시적 순서로 호출합니다.
     window._initAutoLogout = function () {
         if (!sessionStorage.getItem('quiz_user')) return;
         resetActivity();
         startCheck();
     };
 
-    /* ── 외부에서 호출: "계속하기" 버튼 ── */
-    // extendSession은 경고 모달의 버튼에서만 호출되므로 모달은 항상 열려 있습니다.
-    // resetActivity() 내부에서 모달을 닫고 startCheck()까지 재시작하므로
-    // 여기서 별도로 startCheck()를 호출하지 않습니다.
     window.extendSession = function () {
         clearInterval(warnInterval);
         warnInterval = null;
@@ -175,7 +164,7 @@ let currentUser = JSON.parse(sessionStorage.getItem('quiz_user')) || { email: ''
 let currentTargetUserId = null;
 
 // ─────────────────────────────────────────────────────────────────
-// [SEC] XSS 방어 헬퍼
+// XSS 방어 헬퍼
 // DB에서 온 모든 문자열을 innerHTML에 삽입하기 전에 반드시 통과시킵니다.
 // explanation처럼 관리자가 HTML을 의도적으로 사용하는 필드는
 // DOMPurify 등 별도 sanitizer를 적용하는 것을 권장합니다.
@@ -190,7 +179,7 @@ function escapeHtml(str) {
 }
 
 // ─────────────────────────────────────────────────────────────────
-// [C-1] 공통 인증 헤더 생성 헬퍼
+// 공통 인증 헤더 생성 헬퍼
 // 모든 API 호출에 Authorization: Bearer <token> 헤더를 주입합니다.
 // ─────────────────────────────────────────────────────────────────
 function authHeaders() {
@@ -204,14 +193,11 @@ function authHeaders() {
 // ─────────────────────────────────────────────
 // 2. 초기 로드 및 UI 업데이트
 // ─────────────────────────────────────────────
-// [FIX-Critical-③] 단일 DOMContentLoaded로 통합
-// · 기존 두 곳(setupAutoLogout IIFE + 섹션2)에 분산된 초기화를
-//   여기서 명시적 순서대로 호출합니다:
-//   1) updateUserUI()       — currentUser 파싱 및 UI 반영
-//   2) _initAutoLogout()    — 세션 활동 초기화 및 타이머 시작
+// 단일 DOMContentLoaded로 통합:
+//   1) updateUserUI()    — currentUser 파싱 및 UI 반영
+//   2) _initAutoLogout() — 세션 활동 초기화 및 타이머 시작
 // ─────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-    // 1) UI 업데이트 먼저
     updateUserUI();
 
     if (currentUser.status === 'admin') {
@@ -229,7 +215,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (infoEl) infoEl.innerText = `${displayName} (${(currentUser.status || 'free').toUpperCase()})`;
     }
 
-    // 2) 자동 로그아웃 초기화 — UI 파싱 완료 후 실행
     if (typeof window._initAutoLogout === 'function') {
         window._initAutoLogout();
     }
@@ -296,15 +281,12 @@ window.handleLogin = async function () {
         const userData = {
             id    : data.user.id,
             email : data.user.email,
-            // [FIX-High] data.user.name은 항상 undefined — 서버가 name을 반환하지 못할 경우
-            // user_metadata.name을 폴백으로 사용합니다.
             name  : data.user.name || data.user.user_metadata?.name || '',
             status: data.status
         };
         sessionStorage.setItem('quiz_user', JSON.stringify(userData));
         currentUser = userData;
 
-        // [FIX-High-③] 전역 상수 참조
         sessionStorage.setItem(QUIZ_STORAGE_KEY, Date.now());
 
         if (typeof window._startAutoLogoutCheck === 'function') {
@@ -317,7 +299,6 @@ window.handleLogin = async function () {
             guestView.style.display = 'none';
             userView.style.display  = 'block';
             const infoEl = document.getElementById('user-display-info');
-            // [FIX-High] 표시 이름도 동일하게 user_metadata 폴백 적용
             const loginDisplayName = data.user.name || data.user.user_metadata?.name || data.user.email;
             if (infoEl) infoEl.innerText = `${loginDisplayName} (${data.status.toUpperCase()})`;
 
@@ -392,8 +373,7 @@ window.handleSetNewPassword = async function () {
         return showAlert('입력 오류', '두 비밀번호가 일치하지 않습니다.');
     }
 
-    // [FIX-Critical] Supabase Legacy 플로우는 토큰을 hash fragment(#access_token=...)로 전달합니다.
-    // location.search만 읽으면 해당 경우에 토큰을 읽지 못해 비밀번호 재설정이 실패합니다.
+    // Supabase Legacy 플로우는 토큰을 hash fragment(#access_token=...)로 전달합니다.
     // URLSearchParams는 '#' 이후를 무시하므로 hash를 별도로 파싱합니다.
     const searchParams = new URLSearchParams(location.search);
     const hashParams   = new URLSearchParams(location.hash.replace(/^#/, ''));
@@ -422,7 +402,6 @@ window.handleSetNewPassword = async function () {
         const data = await res.json();
         if (!res.ok) throw new Error(data.message);
 
-        // 성공 즉시 URL 파라미터/fragment 제거 — 토큰이 브라우저 히스토리에 남지 않도록 처리
         history.replaceState(null, '', location.pathname);
         showAlert('변경 완료', '비밀번호가 변경되었습니다. 새 비밀번호로 로그인해주세요.');
         if (typeof switchTab === 'function') switchTab('login');
@@ -433,17 +412,30 @@ window.handleSetNewPassword = async function () {
     }
 };
 
+// ─────────────────────────────────────────────────────────────────
 // 로그아웃
+// ─────────────────────────────────────────────────────────────────
 window.handleLogout = function () {
     const modal = document.getElementById('custom-modal');
 
+    // [FIX-High-1] 로그아웃 실행 공통 헬퍼
+    // index.html에서 로그인→로그아웃→재로그인 시 btn-admin-menu가
+    // display:inline-block 상태를 유지하는 문제를 방지합니다.
+    function _doLogout() {
+        sessionStorage.removeItem('quiz_user');
+        sessionStorage.removeItem(QUIZ_STORAGE_KEY);
+        sessionStorage.removeItem('quiz_token');
+
+        // admin 버튼 숨김 — 재로그인 후 상태 초기화 보장
+        const adminBtn = document.getElementById('btn-admin-menu');
+        if (adminBtn) adminBtn.style.display = 'none';
+
+        location.href = 'index.html';
+    }
+
     if (!modal) {
         if (confirm('정말 로그아웃 하시겠습니까?')) {
-            sessionStorage.removeItem('quiz_user');
-            // [FIX-High-③] 하드코딩된 'quiz_last_active' → 전역 상수 QUIZ_STORAGE_KEY 참조
-            sessionStorage.removeItem(QUIZ_STORAGE_KEY);
-            sessionStorage.removeItem('quiz_token');
-            location.href = 'index.html';
+            _doLogout();
         }
         return;
     }
@@ -454,11 +446,7 @@ window.handleLogout = function () {
     document.getElementById('modal-cancel-btn').style.display = 'inline-block';
 
     document.getElementById('modal-confirm-btn').onclick = () => {
-        sessionStorage.removeItem('quiz_user');
-        // [FIX-High-③] 동일하게 전역 상수 참조
-        sessionStorage.removeItem(QUIZ_STORAGE_KEY);
-        sessionStorage.removeItem('quiz_token');
-        location.href = 'index.html';
+        _doLogout();
     };
     modal.style.display = 'flex';
 };
@@ -659,7 +647,7 @@ async function loadUserList() {
         const tbody = document.getElementById('user-list-body');
         if (!tbody) return;
 
-        // [SEC] tbody 전체를 DOM API로 구성 — innerHTML 삽입 없이 XSS 완전 차단
+        // tbody 전체를 DOM API로 구성 — innerHTML 삽입 없이 XSS 완전 차단
         tbody.innerHTML = '';
 
         users.forEach(user => {
