@@ -51,6 +51,10 @@ export default async function handler(req, res) {
         throw error;
       }
 
+      // [FIX-Critical-②] [FIX-High-①]
+      // 이메일 인증 체크를 signInWithPassword 직후, users 조회 이전으로 이동합니다.
+      // 기존 위치(users 조회 이후)에서는 미인증 사용자도 isNotFound 조건을 만족하여
+      // users 테이블에 행이 삽입되는 버그가 있었습니다.
       if (data.user.email_confirmed_at === null) {
         console.warn('[auth.js] 미인증 이메일 로그인 시도:', email);
         return res.status(403).json({
