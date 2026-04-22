@@ -105,12 +105,14 @@ export default async function handler(req, res) {
         //         수정: typeof string && trim() !== '' 로 검증과 적용 조건을 동일하게 통일합니다.
         //         이렇게 하면 0이나 false 같은 비정상 값도 검증 단계에서 일관되게 처리됩니다.
         if (typeof newStatus === 'string' && newStatus.trim() !== '') {
-          if (!VALID_STATUSES.includes(newStatus.trim())) {
+          // [FIX-High-④] 소문자 정규화 추가 — 'PREMIUM', 'Admin' 등 대소문자 우회 방지
+          const normalizedStatus = newStatus.trim().toLowerCase();
+          if (!VALID_STATUSES.includes(normalizedStatus)) {
             return res.status(400).json({
               message: `유효하지 않은 상태값입니다. 허용값: ${VALID_STATUSES.join(', ')}`
             });
           }
-          updateData.user_status = newStatus.trim();
+          updateData.user_status = normalizedStatus;
         }
 
         if (expiryDate) updateData.expiry_date = expiryDate;
