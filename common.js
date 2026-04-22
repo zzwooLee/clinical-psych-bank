@@ -10,6 +10,7 @@
     const TIMEOUT_MS  = 30 * 60 * 1000;  // 비활동 허용 시간 : 30분
     const WARN_MS     =  2 * 60 * 1000;  // 만료 몇 ms 전에 경고 : 2분
     const CHECK_MS    =      60 * 1000;  // 주기적 체크 간격   : 1분
+    const THROTTLE_MS =      30 * 1000;  // 활동 갱신 throttle : 30초
     const STORAGE_KEY = 'quiz_last_active';
 
     let warnInterval  = null;
@@ -89,14 +90,24 @@
     window._startAutoLogoutCheck = startCheck;
 
     /* ── 유저 활동 이벤트 감지 ── */
-    // [HIGH 수정] 스로틀 중에도 첫 이벤트는 즉시 활동 시각 갱신
+    // [FIX-4] throttle 로직 수정:
+    //   · throttleTimer가 없을 때만 resetActivity() 호출 → sessionStorage write를 30초 1회로 제한
+    //   · 경고 모달이 열려 있으면 throttle 없이 즉시 갱신 (모달 닫기 보장)
     ['mousemove', 'keydown', 'click', 'touchstart', 'scroll'].forEach(evt => {
         document.addEventListener(evt, () => {
             if (!sessionStorage.getItem('quiz_user')) return;
-            // 즉시 갱신 후 30초 쿨다운
-            resetActivity();
+
+            // 경고 모달이 열려 있으면 throttle 없이 즉시 갱신 (모달 닫기 우선)
+            const warnModal = document.getElementById('auto-logout-modal');
+            if (warnModal && warnModal.style.display === 'flex') {
+                resetActivity();
+                return;
+            }
+
+            // 일반 활동: 30초 throttle로 sessionStorage write 횟수 제한
             if (throttleTimer) return;
-            throttleTimer = setTimeout(() => { throttleTimer = null; }, 30 * 1000);
+            resetActivity();
+            throttleTimer = setTimeout(() => { throttleTimer = null; }, THROTTLE_MS);
         }, { passive: true });
     });
 
@@ -325,7 +336,7 @@ window.handleSetNewPassword = async function () {
     }
 
     // URL에서 복구 토큰 추출
-    const params      = new URLSearchParams(location.search);
+    const params        = new URLSearchParams(location.search);
     const recoveryToken = params.get('token_hash') || params.get('access_token');
 
     if (!recoveryToken) {
@@ -555,7 +566,7 @@ async function loadAdminStats() {
             body   : JSON.stringify({})
         });
         if (vRes.ok) {
-            const vStats  = await vRes.json();
+            const vStats   = await vRes.json();
             const verifyEl = document.getElementById('stat-verify-status');
             if (verifyEl) {
                 verifyEl.innerText =
