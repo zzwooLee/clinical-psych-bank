@@ -24,6 +24,7 @@
         if (warnModal && warnModal.style.display === 'flex') {
             warnModal.style.display = 'none';
             clearInterval(warnInterval);
+            warnInterval = null;
         }
     }
 
@@ -31,12 +32,19 @@
     function forceLogout() {
         clearInterval(warnInterval);
         clearInterval(checkInterval);
+        // [FIX] throttleTimer도 함께 클리어 — 로그아웃 후 백그라운드 타이머 방지
+        clearTimeout(throttleTimer);
+        throttleTimer = null;
+        warnInterval  = null;
+        checkInterval = null;
+
         sessionStorage.removeItem('quiz_user');
         sessionStorage.removeItem(STORAGE_KEY);
-        // [C-1] accessToken도 함께 제거
         sessionStorage.removeItem('quiz_token');
+
         const warnModal = document.getElementById('auto-logout-modal');
         if (warnModal) warnModal.style.display = 'none';
+
         const path = location.pathname;
         if (!path.endsWith('index.html') && path !== '/' && path !== '') {
             location.href = 'index.html';
@@ -50,6 +58,10 @@
 
     /* ── 경고 모달 표시 + 카운트다운 ── */
     function showWarnModal(remainSec) {
+        // [FIX] 이전 warnInterval이 남아 있으면 먼저 클리어 — 중복 카운트다운 방지
+        clearInterval(warnInterval);
+        warnInterval = null;
+
         const modal   = document.getElementById('auto-logout-modal');
         const countEl = document.getElementById('auto-logout-count');
         if (!modal) { forceLogout(); return; }
@@ -60,7 +72,7 @@
         warnInterval = setInterval(() => {
             remain -= 1;
             if (countEl) countEl.innerText = remain;
-            if (remain <= 0) { clearInterval(warnInterval); forceLogout(); }
+            if (remain <= 0) { clearInterval(warnInterval); warnInterval = null; forceLogout(); }
         }, 1000);
     }
 
@@ -68,31 +80,30 @@
     function startCheck() {
         clearInterval(checkInterval);
         checkInterval = setInterval(() => {
-            if (!sessionStorage.getItem('quiz_user')) { clearInterval(checkInterval); return; }
+            if (!sessionStorage.getItem('quiz_user')) { clearInterval(checkInterval); checkInterval = null; return; }
             const lastActive = parseInt(sessionStorage.getItem(STORAGE_KEY) || Date.now());
             const idle       = Date.now() - lastActive;
             const remain     = TIMEOUT_MS - idle;
 
             if (remain <= 0) {
                 clearInterval(checkInterval);
+                checkInterval = null;
                 forceLogout();
             } else if (remain <= WARN_MS) {
                 const modal = document.getElementById('auto-logout-modal');
                 if (modal && modal.style.display !== 'flex') {
                     clearInterval(checkInterval);
+                    checkInterval = null;
                     showWarnModal(Math.floor(remain / 1000));
                 }
             }
         }, CHECK_MS);
     }
 
-    // [C-2] startCheck를 외부에서 호출 가능하도록 노출 (로그인 직후 호출용)
+    // startCheck를 외부에서 호출 가능하도록 노출 (로그인 직후 호출용)
     window._startAutoLogoutCheck = startCheck;
 
     /* ── 유저 활동 이벤트 감지 ── */
-    // [FIX-4] throttle 로직 수정:
-    //   · throttleTimer가 없을 때만 resetActivity() 호출 → sessionStorage write를 30초 1회로 제한
-    //   · 경고 모달이 열려 있으면 throttle 없이 즉시 갱신 (모달 닫기 보장)
     ['mousemove', 'keydown', 'click', 'touchstart', 'scroll'].forEach(evt => {
         document.addEventListener(evt, () => {
             if (!sessionStorage.getItem('quiz_user')) return;
@@ -101,6 +112,7 @@
             const warnModal = document.getElementById('auto-logout-modal');
             if (warnModal && warnModal.style.display === 'flex') {
                 resetActivity();
+                startCheck();
                 return;
             }
 
@@ -129,6 +141,7 @@
     /* ── 외부에서 호출: "계속하기" 버튼 ── */
     window.extendSession = function () {
         clearInterval(warnInterval);
+        warnInterval = null;
         resetActivity();
         startCheck();
     };
@@ -143,9 +156,23 @@ let currentUser = JSON.parse(sessionStorage.getItem('quiz_user')) || { email: ''
 let currentTargetUserId = null;
 
 // ─────────────────────────────────────────────────────────────────
+// [SEC] XSS 방어 헬퍼
+// DB에서 온 모든 문자열을 innerHTML에 삽입하기 전에 반드시 통과시킵니다.
+// explanation처럼 관리자가 HTML을 의도적으로 사용하는 필드는
+// DOMPurify 등 별도 sanitizer를 적용하는 것을 권장합니다.
+// ─────────────────────────────────────────────────────────────────
+function escapeHtml(str) {
+    return String(str ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+// ─────────────────────────────────────────────────────────────────
 // [C-1] 공통 인증 헤더 생성 헬퍼
 // 모든 API 호출에 Authorization: Bearer <token> 헤더를 주입합니다.
-// 서버는 이 토큰을 검증해 권한을 판단하며, body의 userStatus는 무시합니다.
 // ─────────────────────────────────────────────────────────────────
 function authHeaders() {
     const token = sessionStorage.getItem('quiz_token');
@@ -231,8 +258,6 @@ window.handleLogin = async function () {
         const data = await res.json();
         if (!res.ok) throw new Error(data.message);
 
-        // [C-1] 서버에서 받은 accessToken을 sessionStorage에 저장
-        //       이후 모든 API 호출에서 authHeaders()를 통해 자동으로 포함됩니다.
         if (data.accessToken) {
             sessionStorage.setItem('quiz_token', data.accessToken);
         }
@@ -248,7 +273,6 @@ window.handleLogin = async function () {
 
         sessionStorage.setItem('quiz_last_active', Date.now());
 
-        // [C-2] 로그인 직후 자동 로그아웃 체크 시작
         if (typeof window._startAutoLogoutCheck === 'function') {
             window._startAutoLogoutCheck();
         }
@@ -298,7 +322,7 @@ window.handleSignUp = async function () {
     }
 };
 
-// [C-2] 비밀번호 재설정 이메일 발송
+// 비밀번호 재설정 이메일 발송
 window.handleResetPassword = async function () {
     const email = document.getElementById('reset-email')?.value.trim();
     if (!email) return showAlert('입력 오류', '이메일을 입력해주세요.');
@@ -313,7 +337,6 @@ window.handleResetPassword = async function () {
             body   : JSON.stringify({ email })
         });
         const data = await res.json();
-        // 보안상 서버는 항상 200 반환 — 클라이언트도 성공으로 처리
         showAlert('이메일 발송', data.message || '재설정 링크를 발송했습니다. 스팸함도 확인해주세요.');
     } catch (e) {
         showAlert('오류', '일시적인 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
@@ -322,8 +345,7 @@ window.handleResetPassword = async function () {
     }
 };
 
-// [C-2] 새 비밀번호 저장
-// Supabase가 이메일 링크에 담아 보낸 access_token을 URL에서 파싱해 서버로 전달합니다.
+// 새 비밀번호 저장
 window.handleSetNewPassword = async function () {
     const pw  = document.getElementById('new-password')?.value;
     const pw2 = document.getElementById('new-password-confirm')?.value;
@@ -335,7 +357,6 @@ window.handleSetNewPassword = async function () {
         return showAlert('입력 오류', '두 비밀번호가 일치하지 않습니다.');
     }
 
-    // URL에서 복구 토큰 추출
     const params        = new URLSearchParams(location.search);
     const recoveryToken = params.get('token_hash') || params.get('access_token');
 
@@ -358,9 +379,9 @@ window.handleSetNewPassword = async function () {
         const data = await res.json();
         if (!res.ok) throw new Error(data.message);
 
-        showAlert('변경 완료', '비밀번호가 변경되었습니다. 새 비밀번호로 로그인해주세요.');
-        // URL 파라미터 제거 후 로그인 폼으로 이동
+        // [FIX] 성공 즉시 URL 파라미터 제거 — 토큰이 브라우저 히스토리에 남지 않도록 처리
         history.replaceState(null, '', location.pathname);
+        showAlert('변경 완료', '비밀번호가 변경되었습니다. 새 비밀번호로 로그인해주세요.');
         if (typeof switchTab === 'function') switchTab('login');
     } catch (e) {
         showAlert('오류', e.message);
@@ -377,7 +398,6 @@ window.handleLogout = function () {
         if (confirm('정말 로그아웃 하시겠습니까?')) {
             sessionStorage.removeItem('quiz_user');
             sessionStorage.removeItem('quiz_last_active');
-            // [C-1] accessToken도 함께 제거
             sessionStorage.removeItem('quiz_token');
             location.href = 'index.html';
         }
@@ -392,7 +412,6 @@ window.handleLogout = function () {
     document.getElementById('modal-confirm-btn').onclick = () => {
         sessionStorage.removeItem('quiz_user');
         sessionStorage.removeItem('quiz_last_active');
-        // [C-1] accessToken도 함께 제거
         sessionStorage.removeItem('quiz_token');
         location.href = 'index.html';
     };
@@ -412,7 +431,6 @@ window.loadQuestions = async function () {
     const area = document.getElementById('question-area');
     if (area) area.innerHTML = '<div style="text-align:center; padding:50px;">데이터 로드 중...</div>';
 
-    // [C-1] userStatus는 body에서 제거 — 서버가 JWT로 직접 판단
     const payload = {
         grade   : document.getElementById('sel-grade')?.value,
         category: document.getElementById('sel-category')?.value,
@@ -423,7 +441,6 @@ window.loadQuestions = async function () {
     try {
         const response = await fetch('/api/questions', {
             method : 'POST',
-            // [C-1] authHeaders()로 Authorization 헤더 자동 주입
             headers: authHeaders(),
             body   : JSON.stringify(payload)
         });
@@ -450,24 +467,33 @@ function renderQuestion() {
         return;
     }
 
-    // 범위 안전 처리
     currentIndex = Math.max(0, Math.min(currentIndex, allQuestions.length - 1));
 
     const q           = allQuestions[currentIndex];
+    // [SEC] exam_date는 숫자 타입이므로 escapeHtml 불필요, 표시용 연도 문자열만 생성
     const displayYear = q.exam_date ? String(q.exam_date).substring(0, 4) + '년' : '';
+
+    // [SEC] DB 데이터를 innerHTML에 삽입하기 전 모두 escapeHtml 처리
+    //       explanation은 관리자가 줄바꿈 등 HTML을 의도적으로 사용할 수 있으므로
+    //       escapeHtml 후 개행(\n)만 <br>로 변환하는 방식으로 처리합니다.
+    const safeQuestion    = escapeHtml(q.question);
+    const safeCategory    = escapeHtml(q.category);
+    const safeExplanation = q.explanation
+        ? escapeHtml(q.explanation).replace(/\n/g, '<br>')
+        : '';
 
     area.innerHTML = `
         <div class="card">
             <div class="card-header-info">
                 <span>문제 ${currentIndex + 1} / ${allQuestions.length}</span>
-                <span>${q.category || ''} ${displayYear ? '(' + displayYear + ')' : ''}</span>
+                <span>${safeCategory} ${displayYear ? '(' + displayYear + ')' : ''}</span>
             </div>
-            <div class="card-question">${q.question}</div>
+            <div class="card-question">${safeQuestion}</div>
             <div class="choices">
                 ${[1, 2, 3, 4].map(num => `
                     <button class="choice-btn" id="choice-${num}" onclick="checkAnswer(${num})">
                         <span class="choice-num">${num}</span>
-                        <span class="choice-text">${q['choice' + num]}</span>
+                        <span class="choice-text">${escapeHtml(q['choice' + num])}</span>
                     </button>
                 `).join('')}
             </div>
@@ -488,24 +514,28 @@ window.checkAnswer = function (selected) {
 
     btns.forEach(btn => (btn.style.pointerEvents = 'none'));
 
+    // [SEC] correct는 숫자(1~4)이므로 innerHTML 삽입 전 Number()로 강제 변환
+    const safeCorrect = Number(correct);
+
     let resultHTML = '';
-    if (selected == correct) {
+    if (selected == safeCorrect) {
         document.getElementById(`choice-${selected}`).style.borderColor     = '#2ecc71';
         document.getElementById(`choice-${selected}`).style.backgroundColor = '#eafaf2';
         resultHTML = `<div style="color:#2ecc71; font-weight:800; font-size:1.2rem; margin-bottom:10px;">✅ 정답입니다!</div>`;
     } else {
         document.getElementById(`choice-${selected}`).style.borderColor     = '#e74c3c';
         document.getElementById(`choice-${selected}`).style.backgroundColor = '#fdf0ee';
-        document.getElementById(`choice-${correct}`).style.borderColor      = '#2ecc71';
-        document.getElementById(`choice-${correct}`).style.backgroundColor  = '#f0fff4';
+        document.getElementById(`choice-${safeCorrect}`).style.borderColor      = '#2ecc71';
+        document.getElementById(`choice-${safeCorrect}`).style.backgroundColor  = '#f0fff4';
         resultHTML = `<div style="color:#e74c3c; font-weight:800; font-size:1.2rem; margin-bottom:10px;">❌ 오답입니다.</div>
-                      <div style="background:#f8f9fa; padding:12px; border-radius:8px; margin-bottom:15px;">정답은 <strong>${correct}번</strong> 입니다.</div>`;
+                      <div style="background:#f8f9fa; padding:12px; border-radius:8px; margin-bottom:15px;">정답은 <strong>${safeCorrect}번</strong> 입니다.</div>`;
     }
 
     if (q.explanation) {
+        const safeExp = escapeHtml(q.explanation).replace(/\n/g, '<br>');
         resultHTML += `
             <div style="text-align:left; background:#f0f4ff; border-left:4px solid #364d79; padding:15px; border-radius:8px; margin-top:15px;">
-                <strong>💡 해설:</strong><br>${q.explanation}
+                <strong>💡 해설:</strong><br>${safeExp}
             </div>`;
     }
     resultBox.innerHTML     = resultHTML;
@@ -544,7 +574,6 @@ window.toggleAdminPanel = function () {
 
 async function loadAdminStats() {
     try {
-        // [C-1] authHeaders()로 JWT 자동 주입 — body에 userStatus 제거
         const response = await fetch('/api/admin/stats', {
             method : 'POST',
             headers: authHeaders(),
@@ -559,8 +588,7 @@ async function loadAdminStats() {
         document.getElementById('stat-today-users').innerText     = (stats.activeUsers || 0).toLocaleString();
         document.getElementById('stat-premium-rate').innerText    = (stats.premiumRate || 0) + '%';
 
-        // 검수 현황 카드 연동
-        const vRes   = await fetch('/api/admin/verify-stats', {
+        const vRes = await fetch('/api/admin/verify-stats', {
             method : 'POST',
             headers: authHeaders(),
             body   : JSON.stringify({})
@@ -578,7 +606,6 @@ async function loadAdminStats() {
 
 async function loadUserList() {
     try {
-        // [C-1] authHeaders()로 JWT 자동 주입
         const response = await fetch('/api/admin/users', {
             method : 'POST',
             headers: authHeaders(),
@@ -591,28 +618,72 @@ async function loadUserList() {
         const users = await response.json();
         const tbody = document.getElementById('user-list-body');
         if (!tbody) return;
+
+        // [SEC] tbody 전체를 DOM API로 구성 — innerHTML 삽입 없이 XSS 완전 차단
         tbody.innerHTML = '';
 
         users.forEach(user => {
-            const tr            = document.createElement('tr');
             const uStatus       = user.user_status || 'free';
             const expiryDisplay = user.expiry_date ? user.expiry_date.split('T')[0] : '-';
 
-            tr.innerHTML = `
-                <td style="text-align:left; padding-left:15px;">${user.name || '-'}</td>
-                <td style="text-align:left; padding-left:10px;">${user.email}</td>
-                <td style="text-align:center;"><span class="badge-${uStatus}">${uStatus.toUpperCase()}</span></td>
-                <td style="text-align:center;">${expiryDisplay}</td>
-                <td style="text-align:center;">
-                    <select onchange="updateUserStatus('${user.id}', this.value)" style="padding:4px; border-radius:4px;">
-                        <option value="free"    ${uStatus === 'free'    ? 'selected' : ''}>FREE</option>
-                        <option value="premium" ${uStatus === 'premium' ? 'selected' : ''}>PREMIUM</option>
-                        <option value="admin"   ${uStatus === 'admin'   ? 'selected' : ''}>ADMIN</option>
-                    </select>
-                    <button onclick="setExpiryDate('${user.id}')" style="background:none; border:none; cursor:pointer;">📅</button>
-                    <button onclick="deleteUser('${user.id}', '${user.email}')" style="background:none; border:none; cursor:pointer; color:#e74c3c; margin-left:5px;">🗑️</button>
-                </td>
-            `;
+            const tr = document.createElement('tr');
+
+            // 이름
+            const tdName = document.createElement('td');
+            tdName.style.cssText = 'text-align:left; padding-left:15px;';
+            tdName.textContent = user.name || '-';
+            tr.appendChild(tdName);
+
+            // 이메일
+            const tdEmail = document.createElement('td');
+            tdEmail.style.cssText = 'text-align:left; padding-left:10px;';
+            tdEmail.textContent = user.email;
+            tr.appendChild(tdEmail);
+
+            // 등급 배지
+            const tdStatus = document.createElement('td');
+            tdStatus.style.textAlign = 'center';
+            const badge = document.createElement('span');
+            badge.className = `badge-${uStatus}`;
+            badge.textContent = uStatus.toUpperCase();
+            tdStatus.appendChild(badge);
+            tr.appendChild(tdStatus);
+
+            // 만료일
+            const tdExpiry = document.createElement('td');
+            tdExpiry.style.textAlign = 'center';
+            tdExpiry.textContent = expiryDisplay;
+            tr.appendChild(tdExpiry);
+
+            // 관리 셀
+            const tdAction = document.createElement('td');
+            tdAction.style.textAlign = 'center';
+
+            const sel = document.createElement('select');
+            sel.style.cssText = 'padding:4px; border-radius:4px;';
+            [['free','FREE'], ['premium','PREMIUM'], ['admin','ADMIN']].forEach(([val, label]) => {
+                const opt = document.createElement('option');
+                opt.value = val;
+                opt.textContent = label;
+                if (uStatus === val) opt.selected = true;
+                sel.appendChild(opt);
+            });
+            sel.addEventListener('change', () => updateUserStatus(user.id, sel.value));
+            tdAction.appendChild(sel);
+
+            const btnCal = document.createElement('button');
+            btnCal.textContent = '📅';
+            btnCal.style.cssText = 'background:none; border:none; cursor:pointer;';
+            btnCal.addEventListener('click', () => setExpiryDate(user.id));
+            tdAction.appendChild(btnCal);
+
+            const btnDel = document.createElement('button');
+            btnDel.textContent = '🗑️';
+            btnDel.style.cssText = 'background:none; border:none; cursor:pointer; color:#e74c3c; margin-left:5px;';
+            btnDel.addEventListener('click', () => deleteUser(user.id, user.email));
+            tdAction.appendChild(btnDel);
+
+            tr.appendChild(tdAction);
             tbody.appendChild(tr);
         });
     } catch (e) { console.error('유저 목록 로드 실패', e); }
@@ -660,7 +731,6 @@ window.updateUserStatus = function (userId, newStatus) {
 
 async function executeStatusUpdate(userId, newStatus, expiry) {
     try {
-        // [C-1] authHeaders() — body에 userStatus 제거
         const response = await fetch('/api/admin/update-user', {
             method : 'POST',
             headers: authHeaders(),
@@ -693,7 +763,6 @@ window.setExpiryDate = function (userId) {
 
     document.getElementById('modal-confirm-btn').onclick = async () => {
         if (!dateInput.value) return;
-        // [C-1] authHeaders() — body에 userStatus 제거
         const response = await fetch('/api/admin/update-user', {
             method : 'POST',
             headers: authHeaders(),
@@ -714,12 +783,12 @@ window.setExpiryDate = function (userId) {
 window.deleteUser = function (userId, email) {
     const modal = document.getElementById('custom-modal');
     document.getElementById('modal-title').innerText = '회원 삭제';
+    // [SEC] email은 textContent로 표시 (modal-desc는 innerText 사용으로 안전)
     document.getElementById('modal-desc').innerText  = `[경고] ${email} 사용자를 정말 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`;
     document.getElementById('modal-date-input').style.display = 'none';
     document.getElementById('modal-cancel-btn').style.display = 'inline-block';
 
     document.getElementById('modal-confirm-btn').onclick = async () => {
-        // [C-1] authHeaders() — body에 userStatus 제거
         const response = await fetch('/api/admin/delete-user', {
             method : 'POST',
             headers: authHeaders(),
