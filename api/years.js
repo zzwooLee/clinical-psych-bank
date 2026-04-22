@@ -1,9 +1,13 @@
 // years.js
-// [FIX-1] extractYears: Object.values(row)[0] 취약성 수정
-//         → row.exam_date || row.year 만 사용, 컬럼 순서 의존성 제거
-// [FIX-2] 뷰/직접 쿼리 모두 exam_date 컬럼을 명시적으로 select
-// [SEC-1] body.userStatus 폴백 완전 제거 — JWT 검증 실패 시 401 반환
-// [SEC-2] premium 만료 체크 로직 유지
+// ─────────────────────────────────────────────────────────────────
+// 수정 이력
+// [FIX-High-1] premium 만료 처리 fire-and-forget → await + 실패 로그
+//              기존 .then(()=>{}).catch(()=>{}) 패턴은 업데이트 실패 시
+//              아무 흔적도 남기지 않아 만료 후에도 premium 접근이 허용될 수 있었음
+// [기존 유지]  extractYears: exam_date → year → 첫 번째 숫자값 순으로 탐색
+// [기존 유지]  body.userStatus 폴백 완전 제거 — JWT 검증 실패 시 401 반환
+// [기존 유지]  select('*') 유연 파싱 (컬럼명 독립)
+// ─────────────────────────────────────────────────────────────────
 
 import { createClient } from '@supabase/supabase-js';
 
@@ -42,14 +46,18 @@ async function verifyUser(req) {
     let userStatus = profile.user_status || 'free';
     if (userStatus === 'premium' && profile.expiry_date) {
       if (new Date(profile.expiry_date) < new Date()) {
-        console.log('[years.js] premium 만료 → free 처리:', user.id);
+        console.log('[years.js] premium 만료 → free 처리 시작:', user.id);
         userStatus = 'free';
-        supabase
+        // [FIX-High-1] fire-and-forget → await + 실패 로그
+        const { error: downgradeErr } = await supabase
           .from('users')
           .update({ user_status: 'free' })
-          .eq('id', user.id)
-          .then(() => {})
-          .catch(() => {});
+          .eq('id', user.id);
+        if (downgradeErr) {
+          console.error('[years.js] premium 만료 처리 DB 업데이트 실패:', downgradeErr.message);
+        } else {
+          console.log('[years.js] premium 만료 → free 처리 완료:', user.id);
+        }
       }
     }
 
@@ -74,11 +82,9 @@ function toYear(val) {
 }
 
 // ─────────────────────────────────────────────────────────────────
-// [FIX-1] 뷰 또는 테이블 행 배열 → 연도 문자열 배열
-// 기존: Object.values(row)[0] → 컬럼 순서 변경 시 잘못된 값 반환
-// [FIX-High-⑤] 수정: exam_date → year → 첫 번째 숫자값 순으로 탐색
-//   · exam_date, year 컬럼이 없는 뷰에서도 첫 번째 숫자 컬럼을 연도로 사용
-//   · select('*')와 조합하여 컬럼 존재 여부에 독립적으로 동작합니다.
+// 뷰 또는 테이블 행 배열 → 연도 문자열 배열
+// exam_date → year → 첫 번째 숫자값 순으로 탐색
+// select('*')와 조합하여 컬럼 존재 여부에 독립적으로 동작합니다.
 // ─────────────────────────────────────────────────────────────────
 function extractYears(rows) {
   return rows
@@ -124,9 +130,7 @@ export default async function handler(req, res) {
         : 'unique_years_free';
 
     // ── 1차: 뷰 조회 ──────────────────────────────
-    // [FIX-High-⑤] 기존 select('exam_date, year')는 뷰에 두 컬럼이 모두 없으면
-    //              Supabase가 컬럼 오류를 반환합니다.
-    // 수정: select('*')로 전체를 받은 후 extractYears에서 유연하게 파싱합니다.
+    // select('*')로 전체를 받은 후 extractYears에서 유연하게 파싱합니다.
     // extractYears는 exam_date → year → 첫 번째 숫자 값 순으로 탐색합니다.
     const { data: viewData, error: viewError } = await supabase
       .from(viewName)
@@ -146,8 +150,6 @@ export default async function handler(req, res) {
         console.warn(`[years.js] 뷰 "${viewName}" 결과 없음 → 직접 쿼리 폴백`);
       }
 
-      // [FIX-High-⑤] select('exam_date') → select('*')로 통일
-      //              extractYears가 컬럼명에 독립적으로 처리하므로 안전합니다.
       let q = supabase.from('questions').select('*');
       if (userStatus === 'free')    q = q.eq('is_premium', false);
       if (userStatus === 'premium') q = q.eq('is_verified', true);
