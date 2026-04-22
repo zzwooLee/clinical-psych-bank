@@ -25,6 +25,10 @@
             warnModal.style.display = 'none';
             clearInterval(warnInterval);
             warnInterval = null;
+            // [FIX-Critical] 모달을 활동 이벤트로 닫을 때 checkInterval이 null인 채 방치되던 문제 수정
+            // showWarnModal()에서 clearInterval(checkInterval)을 호출하므로,
+            // 모달이 닫힐 때 반드시 startCheck()를 재시작해야 이후 세션 체크가 계속됩니다.
+            startCheck();
         }
     }
 
@@ -32,7 +36,6 @@
     function forceLogout() {
         clearInterval(warnInterval);
         clearInterval(checkInterval);
-        // [FIX] throttleTimer도 함께 클리어 — 로그아웃 후 백그라운드 타이머 방지
         clearTimeout(throttleTimer);
         throttleTimer = null;
         warnInterval  = null;
@@ -58,7 +61,7 @@
 
     /* ── 경고 모달 표시 + 카운트다운 ── */
     function showWarnModal(remainSec) {
-        // [FIX] 이전 warnInterval이 남아 있으면 먼저 클리어 — 중복 카운트다운 방지
+        // 이전 warnInterval이 남아 있으면 먼저 클리어 — 중복 카운트다운 방지
         clearInterval(warnInterval);
         warnInterval = null;
 
@@ -109,10 +112,10 @@
             if (!sessionStorage.getItem('quiz_user')) return;
 
             // 경고 모달이 열려 있으면 throttle 없이 즉시 갱신 (모달 닫기 우선)
+            // resetActivity() 내부에서 startCheck()가 호출되므로 여기서 별도 호출 불필요
             const warnModal = document.getElementById('auto-logout-modal');
             if (warnModal && warnModal.style.display === 'flex') {
                 resetActivity();
-                startCheck();
                 return;
             }
 
@@ -132,6 +135,9 @@
     });
 
     /* ── 페이지 로드 후 초기화 ── */
+    // [FIX-주의] setupAutoLogout IIFE 내부에서만 DOMContentLoaded를 등록합니다.
+    // 전역 DOMContentLoaded(아래 섹션 2)와 중복 등록을 피하기 위해
+    // 여기서는 자동 로그아웃 초기화만 담당합니다.
     document.addEventListener('DOMContentLoaded', () => {
         if (!sessionStorage.getItem('quiz_user')) return;
         resetActivity();
@@ -139,11 +145,13 @@
     });
 
     /* ── 외부에서 호출: "계속하기" 버튼 ── */
+    // extendSession은 경고 모달의 버튼에서만 호출되므로 모달은 항상 열려 있습니다.
+    // resetActivity() 내부에서 모달을 닫고 startCheck()까지 재시작하므로
+    // 여기서 별도로 startCheck()를 호출하지 않습니다.
     window.extendSession = function () {
         clearInterval(warnInterval);
         warnInterval = null;
         resetActivity();
-        startCheck();
     };
 })();
 
@@ -265,7 +273,9 @@ window.handleLogin = async function () {
         const userData = {
             id    : data.user.id,
             email : data.user.email,
-            name  : data.user.name || '',
+            // [FIX-High] data.user.name은 항상 undefined — 서버가 name을 반환하지 못할 경우
+            // user_metadata.name을 폴백으로 사용합니다.
+            name  : data.user.name || data.user.user_metadata?.name || '',
             status: data.status
         };
         sessionStorage.setItem('quiz_user', JSON.stringify(userData));
@@ -283,7 +293,8 @@ window.handleLogin = async function () {
             guestView.style.display = 'none';
             userView.style.display  = 'block';
             const infoEl = document.getElementById('user-display-info');
-            const loginDisplayName = data.user.name || data.user.email;
+            // [FIX-High] 표시 이름도 동일하게 user_metadata 폴백 적용
+            const loginDisplayName = data.user.name || data.user.user_metadata?.name || data.user.email;
             if (infoEl) infoEl.innerText = `${loginDisplayName} (${data.status.toUpperCase()})`;
 
             if (data.status === 'admin') {
@@ -357,8 +368,16 @@ window.handleSetNewPassword = async function () {
         return showAlert('입력 오류', '두 비밀번호가 일치하지 않습니다.');
     }
 
-    const params        = new URLSearchParams(location.search);
-    const recoveryToken = params.get('token_hash') || params.get('access_token');
+    // [FIX-Critical] Supabase Legacy 플로우는 토큰을 hash fragment(#access_token=...)로 전달합니다.
+    // location.search만 읽으면 해당 경우에 토큰을 읽지 못해 비밀번호 재설정이 실패합니다.
+    // URLSearchParams는 '#' 이후를 무시하므로 hash를 별도로 파싱합니다.
+    const searchParams = new URLSearchParams(location.search);
+    const hashParams   = new URLSearchParams(location.hash.replace(/^#/, ''));
+
+    const recoveryToken = searchParams.get('token_hash')
+        || hashParams.get('token_hash')
+        || hashParams.get('access_token')
+        || searchParams.get('access_token');
 
     if (!recoveryToken) {
         return showAlert('오류', '유효하지 않은 접근입니다. 재설정 이메일의 링크를 다시 클릭해주세요.');
@@ -379,7 +398,7 @@ window.handleSetNewPassword = async function () {
         const data = await res.json();
         if (!res.ok) throw new Error(data.message);
 
-        // [FIX] 성공 즉시 URL 파라미터 제거 — 토큰이 브라우저 히스토리에 남지 않도록 처리
+        // 성공 즉시 URL 파라미터/fragment 제거 — 토큰이 브라우저 히스토리에 남지 않도록 처리
         history.replaceState(null, '', location.pathname);
         showAlert('변경 완료', '비밀번호가 변경되었습니다. 새 비밀번호로 로그인해주세요.');
         if (typeof switchTab === 'function') switchTab('login');
@@ -470,12 +489,8 @@ function renderQuestion() {
     currentIndex = Math.max(0, Math.min(currentIndex, allQuestions.length - 1));
 
     const q           = allQuestions[currentIndex];
-    // [SEC] exam_date는 숫자 타입이므로 escapeHtml 불필요, 표시용 연도 문자열만 생성
     const displayYear = q.exam_date ? String(q.exam_date).substring(0, 4) + '년' : '';
 
-    // [SEC] DB 데이터를 innerHTML에 삽입하기 전 모두 escapeHtml 처리
-    //       explanation은 관리자가 줄바꿈 등 HTML을 의도적으로 사용할 수 있으므로
-    //       escapeHtml 후 개행(\n)만 <br>로 변환하는 방식으로 처리합니다.
     const safeQuestion    = escapeHtml(q.question);
     const safeCategory    = escapeHtml(q.category);
     const safeExplanation = q.explanation
@@ -514,7 +529,6 @@ window.checkAnswer = function (selected) {
 
     btns.forEach(btn => (btn.style.pointerEvents = 'none'));
 
-    // [SEC] correct는 숫자(1~4)이므로 innerHTML 삽입 전 Number()로 강제 변환
     const safeCorrect = Number(correct);
 
     let resultHTML = '';
@@ -628,19 +642,16 @@ async function loadUserList() {
 
             const tr = document.createElement('tr');
 
-            // 이름
             const tdName = document.createElement('td');
             tdName.style.cssText = 'text-align:left; padding-left:15px;';
             tdName.textContent = user.name || '-';
             tr.appendChild(tdName);
 
-            // 이메일
             const tdEmail = document.createElement('td');
             tdEmail.style.cssText = 'text-align:left; padding-left:10px;';
             tdEmail.textContent = user.email;
             tr.appendChild(tdEmail);
 
-            // 등급 배지
             const tdStatus = document.createElement('td');
             tdStatus.style.textAlign = 'center';
             const badge = document.createElement('span');
@@ -649,13 +660,11 @@ async function loadUserList() {
             tdStatus.appendChild(badge);
             tr.appendChild(tdStatus);
 
-            // 만료일
             const tdExpiry = document.createElement('td');
             tdExpiry.style.textAlign = 'center';
             tdExpiry.textContent = expiryDisplay;
             tr.appendChild(tdExpiry);
 
-            // 관리 셀
             const tdAction = document.createElement('td');
             tdAction.style.textAlign = 'center';
 
@@ -783,7 +792,6 @@ window.setExpiryDate = function (userId) {
 window.deleteUser = function (userId, email) {
     const modal = document.getElementById('custom-modal');
     document.getElementById('modal-title').innerText = '회원 삭제';
-    // [SEC] email은 textContent로 표시 (modal-desc는 innerText 사용으로 안전)
     document.getElementById('modal-desc').innerText  = `[경고] ${email} 사용자를 정말 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`;
     document.getElementById('modal-date-input').style.display = 'none';
     document.getElementById('modal-cancel-btn').style.display = 'inline-block';
