@@ -1,11 +1,16 @@
 // slack-action.js
-// [FIX-1] action.value JSON.parse 실패 시 개별 try/catch로 안전하게 처리 (기존 유지)
-// [SEC-6] Slack 서명 검증(HMAC-SHA256) 유지
-// [FIX-2] 승인 처리: DB 업데이트 성공 여부를 dbSuccess 플래그로 추적
-//         id와 email 두 번의 fallback이 모두 실패하면 승인 메일 미발송 + Slack에 실패 표시
-//         기존: 양쪽 모두 실패해도 승인 메일 발송 및 Slack "✅ 승인 완료" 표시 — 데이터 불일치
-// [주의]  승인 만료일은 현재 1개월 고정입니다. 유연한 기간 처리가 필요하면
-//         /api/update-expiry 엔드포인트 활용을 권장합니다.
+// ─────────────────────────────────────────────────────────────────
+// 수정 이력
+// [FIX-Critical-1] 승인 후 활성화 즉시 반영 안내 — 승인 메일에
+//                  "새로고침 또는 재로그인 시 즉시 반영됩니다" 문구 추가
+//                  (DB는 업데이트되지만 로그인 세션 sessionStorage는 별도 갱신 필요)
+// [FIX-High-1]    responseUrl fetch 실패(4xx/5xx/네트워크 오류) 시
+//                  오류 로그를 남기도록 처리 — 무음 실패 방지
+//                  (관리자가 Slack 메시지 미갱신 상태를 인지하지 못하고 중복 클릭 방지)
+// [기존 유지]     action.value JSON.parse 실패 시 개별 try/catch 안전 처리
+// [기존 유지]     Slack 서명 검증(HMAC-SHA256) + 타임스탬프 재전송 방지
+// [기존 유지]     승인 처리 dbSuccess 플래그 — DB 실패 시 메일 미발송 + Slack 실패 표시
+// ─────────────────────────────────────────────────────────────────
 
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
@@ -104,6 +109,31 @@ async function sendEmail({ to, subject, html }) {
 }
 
 // ─────────────────────────────────────────────────────────────────
+// [FIX-High-1] Slack responseUrl 업데이트 헬퍼
+// 기존: fetch 후 status 로깅만 — 4xx/5xx 오류 시 무음 실패
+// 수정: !response.ok 시 오류 로그 + 네트워크 예외도 catch로 처리
+// ─────────────────────────────────────────────────────────────────
+async function updateSlackMessage(responseUrl, blocks) {
+  try {
+    const slackRes = await fetch(responseUrl, {
+      method : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body   : JSON.stringify({ replace_original: true, blocks })
+    });
+    if (!slackRes.ok) {
+      console.error(
+        '[slack-action] Slack 메시지 갱신 실패 — HTTP', slackRes.status,
+        '관리자가 메시지를 다시 확인해주세요.'
+      );
+    } else {
+      console.log('[slack-action] Slack 메시지 갱신 성공:', slackRes.status);
+    }
+  } catch (e) {
+    console.error('[slack-action] Slack 메시지 갱신 네트워크 오류:', e.message);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────
 // 핸들러
 // ─────────────────────────────────────────────────────────────────
 export default async function handler(req, res) {
@@ -170,7 +200,7 @@ export default async function handler(req, res) {
     const adminEmail  = process.env.ADMIN_EMAIL;
     const serviceName = '임상심리사 퀴즈 뱅크';
 
-    // [FIX-1] action.value JSON.parse를 개별 try/catch로 감싸 안전하게 처리
+    // action.value JSON.parse를 개별 try/catch로 감싸 안전하게 처리
     let actionData = {};
     try {
       actionData = JSON.parse(action?.value || '{}');
@@ -195,15 +225,14 @@ export default async function handler(req, res) {
 
     // ── 승인 처리 ──────────────────────────────────────────────
     if (actionId === 'approve_premium') {
-      // [주의] 만료일은 현재 승인 시점 기준 1개월 고정입니다.
-      // 유연한 기간 처리가 필요하면 /api/update-expiry 엔드포인트 활용을 권장합니다.
+      // 만료일은 현재 승인 시점 기준 1개월 고정입니다.
       const expiry    = new Date();
       expiry.setMonth(expiry.getMonth() + 1);
       const expiryStr = expiry.toLocaleDateString('ko-KR');
 
       console.log('[slack-action] 승인 처리 시작 — 만료일:', expiryStr);
 
-      // [FIX-2] dbSuccess 플래그로 DB 업데이트 성공 여부를 추적합니다.
+      // dbSuccess 플래그로 DB 업데이트 성공 여부를 추적합니다.
       // id와 email 두 번의 fallback이 모두 실패하면 승인 메일을 발송하지 않고
       // Slack 메시지도 실패로 표시하여 데이터 불일치를 방지합니다.
       let dbSuccess = false;
@@ -233,22 +262,22 @@ export default async function handler(req, res) {
         }
       }
 
-      // [FIX-2] DB 업데이트 실패 시 메일 미발송 + Slack 실패 메시지 표시
+      // DB 업데이트 실패 시 메일 미발송 + Slack 실패 메시지 표시
       if (!dbSuccess) {
         console.error('[slack-action] DB 업데이트 최종 실패 — 승인 메일 미발송');
-        await fetch(responseUrl, {
-          method : 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body   : JSON.stringify({
-            replace_original: true,
-            blocks: [{ type: 'section', text: { type: 'mrkdwn',
-              text: `⚠️ *DB 업데이트 실패 — 수동 처리 필요*\n${userName || userEmail} (${userEmail})\n관리자 대시보드에서 직접 등급을 변경해주세요.`
-            }}]
-          })
-        });
+        await updateSlackMessage(responseUrl, [{
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text: `⚠️ *DB 업데이트 실패 — 수동 처리 필요*\n${userName || userEmail} (${userEmail})\n관리자 대시보드에서 직접 등급을 변경해주세요.`
+          }
+        }]);
         return res.status(200).end();
       }
 
+      // [FIX-Critical-1] 승인 메일에 세션 갱신 안내 문구 추가
+      // DB는 즉시 업데이트되지만, 이미 로그인 중인 사용자의 브라우저
+      // sessionStorage는 별도로 갱신되지 않아 새로고침/재로그인이 필요합니다.
       await sendEmail({
         to     : userEmail,
         subject: `[${serviceName}] 프리미엄 멤버십이 활성화되었습니다`,
@@ -258,21 +287,22 @@ export default async function handler(req, res) {
           <div style="background:#f0f4ff;border-left:4px solid #364d79;padding:16px 20px;margin:20px 0;border-radius:4px 12px 12px 4px;">
             <p style="margin:0;font-size:0.95rem;color:#2d3748;">등급: <strong>Premium</strong><br>만료일: <strong>${expiryStr}</strong></p>
           </div>
+          <div style="background:#fffbeb;border:1px solid #fbbf24;border-radius:8px;padding:14px 18px;margin-bottom:16px;">
+            <p style="margin:0;font-size:0.9rem;color:#92400e;">
+              💡 <strong>즉시 적용 방법:</strong> 현재 로그인 중이시라면 페이지를 <strong>새로고침</strong>하거나 <strong>재로그인</strong>하시면 프리미엄 혜택이 즉시 반영됩니다.
+            </p>
+          </div>
           <p style="font-size:0.9rem;color:#718096;line-height:1.7;">이제 모든 기출문제와 AI 예상 문제를 이용하실 수 있습니다.<br>문의: <a href="mailto:${adminEmail}" style="color:#364d79;">${adminEmail}</a></p>
         </div>`
       });
 
-      const slackRes = await fetch(responseUrl, {
-        method : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body   : JSON.stringify({
-          replace_original: true,
-          blocks: [{ type: 'section', text: { type: 'mrkdwn',
-            text: `✅ *Premium 승인 완료*\n${userName || userEmail} (${userEmail})\n만료일: ${expiryStr}`
-          }}]
-        })
-      });
-      console.log('[slack-action] Slack 메시지 업데이트 상태:', slackRes.status);
+      await updateSlackMessage(responseUrl, [{
+        type: 'section',
+        text: {
+          type: 'mrkdwn',
+          text: `✅ *Premium 승인 완료*\n${userName || userEmail} (${userEmail})\n만료일: ${expiryStr}`
+        }
+      }]);
     }
 
     // ── 거절 처리 ──────────────────────────────────────────────
@@ -289,17 +319,13 @@ export default async function handler(req, res) {
         </div>`
       });
 
-      const slackRes = await fetch(responseUrl, {
-        method : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body   : JSON.stringify({
-          replace_original: true,
-          blocks: [{ type: 'section', text: { type: 'mrkdwn',
-            text: `❌ *신청 거절*: ${userName || userEmail} (${userEmail})`
-          }}]
-        })
-      });
-      console.log('[slack-action] Slack 메시지 업데이트 상태:', slackRes.status);
+      await updateSlackMessage(responseUrl, [{
+        type: 'section',
+        text: {
+          type: 'mrkdwn',
+          text: `❌ *신청 거절*: ${userName || userEmail} (${userEmail})`
+        }
+      }]);
     }
 
     return res.status(200).end();
