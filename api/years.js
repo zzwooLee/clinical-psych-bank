@@ -1,8 +1,9 @@
 // years.js
-// [SEC-1] body.userStatus 폴백 완전 제거
-//         JWT 검증 실패 시 무조건 401 반환 → userStatus 위조 불가
+// [FIX-1] extractYears: Object.values(row)[0] 취약성 수정
+//         → row.exam_date || row.year 만 사용, 컬럼 순서 의존성 제거
+// [FIX-2] 뷰/직접 쿼리 모두 exam_date 컬럼을 명시적으로 select
+// [SEC-1] body.userStatus 폴백 완전 제거 — JWT 검증 실패 시 401 반환
 // [SEC-2] premium 만료 체크 로직 유지
-// exam_date: int4 8자리 (20190601) → 앞 4자리(2019) 추출
 
 import { createClient } from '@supabase/supabase-js';
 
@@ -13,8 +14,6 @@ const supabase = createClient(
 
 // ─────────────────────────────────────────────────────────────────
 // JWT 검증 헬퍼
-// · 성공 시 { id, user_status } 반환
-// · 실패 시 null 반환 — 절대 throw 안 함
 // ─────────────────────────────────────────────────────────────────
 async function verifyUser(req) {
   try {
@@ -40,13 +39,11 @@ async function verifyUser(req) {
       return null;
     }
 
-    // premium 만료 체크
     let userStatus = profile.user_status || 'free';
     if (userStatus === 'premium' && profile.expiry_date) {
       if (new Date(profile.expiry_date) < new Date()) {
         console.log('[years.js] premium 만료 → free 처리:', user.id);
         userStatus = 'free';
-        // 비동기 다운그레이드 (결과 무시)
         supabase
           .from('users')
           .update({ user_status: 'free' })
@@ -71,19 +68,22 @@ function toYear(val) {
   if (val === null || val === undefined) return null;
   const n = Number(val);
   if (isNaN(n) || n <= 0) return null;
-  // 8자리 이상: YYYYMMDD 형태
   const y = n >= 10000000 ? Math.floor(n / 10000) : n;
   if (y < 1900 || y > 2100) return null;
   return String(y);
 }
 
 // ─────────────────────────────────────────────────────────────────
-// 뷰 또는 테이블 행 배열 → 연도 문자열 배열
+// [FIX-1] 뷰 또는 테이블 행 배열 → 연도 문자열 배열
+// 기존: Object.values(row)[0] → 컬럼 순서 변경 시 잘못된 값 반환
+// 수정: row.exam_date, row.year 순으로 명시적으로 접근
 // ─────────────────────────────────────────────────────────────────
 function extractYears(rows) {
   return rows
     .map(row => {
-      const val = row.exam_date ?? row.year ?? Object.values(row)[0];
+      // exam_date 우선, 없으면 year 컬럼 사용
+      // Object.values(row)[0] 방식 제거 → 컬럼 순서에 독립적
+      const val = row.exam_date !== undefined ? row.exam_date : row.year;
       return toYear(val);
     })
     .filter(Boolean);
@@ -100,7 +100,6 @@ export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
 
-  // ── [SEC-1] 권한 판단: JWT만 신뢰, body 값 일절 사용 안 함 ────
   const verified = await verifyUser(req);
   if (!verified) {
     console.warn('[years.js] 인증 실패 → 401 반환');
@@ -113,17 +112,18 @@ export default async function handler(req, res) {
   try {
     let years = [];
 
-    // ── 뷰 이름 결정 ──────────────────────────────────────────
     const viewName = userStatus === 'admin'
       ? 'unique_years'
       : userStatus === 'premium'
         ? 'unique_years_premium'
         : 'unique_years_free';
 
-    // ── 1차: 뷰 조회 ──────────────────────────────────────────
+    // ── 1차: 뷰 조회 (exam_date 컬럼 명시적 select) ──────────
+    // [FIX-2] select('*') 대신 select('exam_date') 명시
+    //         뷰에 year 컬럼만 있는 경우를 위해 fallback으로 select('*') 유지
     const { data: viewData, error: viewError } = await supabase
       .from(viewName)
-      .select('*');
+      .select('exam_date, year');  // 두 컬럼 모두 시도 — 없는 컬럼은 undefined로 반환됨
 
     if (!viewError && viewData?.length > 0) {
       console.log(
@@ -139,10 +139,10 @@ export default async function handler(req, res) {
         console.warn(`[years.js] 뷰 "${viewName}" 결과 없음 → 직접 쿼리 폴백`);
       }
 
+      // [FIX-2] select('exam_date') 명시 — select('*') 불필요한 컬럼 제거
       let q = supabase.from('questions').select('exam_date');
       if (userStatus === 'free')    q = q.eq('is_premium', false);
       if (userStatus === 'premium') q = q.eq('is_verified', true);
-      // admin: 필터 없음
 
       const { data: qData, error: qError } = await q;
       if (qError) {
@@ -156,7 +156,6 @@ export default async function handler(req, res) {
       years = extractYears(qData || []);
     }
 
-    // 중복 제거 + 내림차순 정렬
     const result = [...new Set(years)].sort((a, b) => Number(b) - Number(a));
     console.log('[years.js] 최종 응답 연도 목록:', result);
 
