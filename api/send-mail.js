@@ -55,10 +55,18 @@ export default async function handler(req, res) {
     return res.status(405).json({ message: 'Method Not Allowed' });
   }
 
-  // [FIX-1] JWT 인증 검증 — 비인증 접근 차단
+  // [FIX-High-②] JWT 인증 검증 — 비인증 접근 차단
   const verified = await verifyUser(req);
   if (!verified) {
     return res.status(401).json({ message: 'Unauthorized: 로그인 후 이용해주세요.' });
+  }
+
+  // [FIX-High-②] 이미 premium 또는 admin인 사용자의 중복 신청 차단
+  // · 클라이언트에서 버튼을 숨기더라도 서버에서 강제 검증합니다.
+  // · 중복 신청 시 Slack 스팸 및 관리자 혼선을 방지합니다.
+  if (verified.userStatus !== 'free') {
+    console.log('[send-mail.js] 중복 신청 차단 — 현재 등급:', verified.userStatus, '/', verified.email);
+    return res.status(400).json({ message: '이미 프리미엄 또는 관리자 계정입니다.' });
   }
 
   // [FIX-2] 이메일과 이름은 JWT에서 검증된 값을 사용 — body 값은 신뢰하지 않음
