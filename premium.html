@@ -145,7 +145,6 @@
                 <div class="stat-card"><span class="stat-label">전체 문제 수</span><span id="stat-total-questions" class="stat-value">-</span></div>
                 <div class="stat-card"><span class="stat-label">활성 사용자</span><span id="stat-today-users" class="stat-value">-</span></div>
                 <div class="stat-card"><span class="stat-label">프리미엄 비율</span><span id="stat-premium-rate" class="stat-value">-%</span></div>
-                <!-- ★ [추가] 검수 현황 카드 -->
                 <div class="stat-card" style="grid-column: span 3;">
                     <span class="stat-label">📋 프리미엄 문제 검수 현황 (2014~2019년)</span>
                     <span id="stat-verify-status" class="stat-value" style="font-size:1rem;">-</span>
@@ -157,7 +156,6 @@
                     <table class="user-table" style="width:100%; border-collapse:collapse;">
                         <thead>
                             <tr>
-                                <!-- ★ [수정] 이름 컬럼 추가 -->
                                 <th style="text-align:left; padding:12px 15px;">이름</th>
                                 <th style="text-align:left; padding:12px;">이메일</th>
                                 <th style="text-align:center; padding:12px;">현재 등급</th>
@@ -166,7 +164,6 @@
                             </tr>
                         </thead>
                         <tbody id="user-list-body">
-                            <!-- ★ [수정] colspan 4 → 5 -->
                             <tr><td colspan="5" style="text-align:center; padding:30px; color:#a0aec0;">데이터를 불러오는 중...</td></tr>
                         </tbody>
                     </table>
@@ -205,7 +202,6 @@
     <!-- 프리미엄 업그레이드 안내 모달 -->
     <div id="upgrade-modal" class="modal-overlay" style="display:none;" onclick="closeUpgradeModal(event)">
         <div class="modal-content" style="width:400px; padding:35px 30px;">
-            <!-- premium-info.json에서 fetch해 동적으로 채워짐 -->
             <div id="upgrade-modal-body" style="text-align:center; padding:20px; color:#a0aec0;">
                 로딩 중...
             </div>
@@ -213,16 +209,20 @@
     </div>
 
     <script src="premium-info.js"></script>
-    <!-- [FIX-Critical-①] common.js 경쟁 조건 수정
-         기존: <script src="common.js" defer> + 인라인 defer 블록
-         → defer 스크립트는 파싱 순서 보장이 되지만, 인라인 스크립트에는
-           defer가 적용되지 않아 DOMContentLoaded 시점에 authHeaders가
-           아직 정의되지 않을 수 있었습니다.
-         수정: common.js를 defer 없이 body 최하단에 배치합니다.
-           body 최하단 배치는 DOM이 이미 파싱된 후이므로 defer와 동일한
-           효과를 가지면서, 이후 인라인 스크립트보다 먼저 실행됩니다. -->
+    <!--
+        common.js 로드 순서 정책:
+        · common.js를 defer 없이 body 최하단에 배치합니다.
+        · body 최하단 배치는 DOM이 이미 파싱된 후이므로 defer와 동일한
+          효과를 가지면서, 이후 인라인 스크립트보다 먼저 실행됩니다.
+        · 아래 인라인 <script>에는 defer를 사용하지 않습니다.
+          인라인 스크립트에 defer는 HTML 명세상 무시되며(효과 없음),
+          작성자의 의도와 실제 동작이 불일치하여 혼란을 유발합니다.
+    -->
     <script src="common.js"></script>
-    <script defer>
+    <!-- [FIX-Critical] defer 제거 — 인라인 스크립트에 defer는 HTML 명세상 무시됩니다.
+         common.js가 동기로 먼저 실행된 뒤 이 블록이 실행되므로
+         authHeaders 등 모든 전역 함수는 이미 정의되어 있습니다. -->
+    <script>
         /* ── 과목 데이터 ── */
         const subjectData = {
             "1": ["고급임상심리학", "고급이상심리학", "고급심리검사", "고급심리치료", "고급연구방법론"],
@@ -244,9 +244,8 @@
         }
 
         /* ── 연도 초기화 ── */
-        // [FIX-Critical-①] common.js가 이 스크립트보다 먼저 실행되므로
-        //                   authHeaders는 항상 정의되어 있습니다.
-        //                   기존의 typeof 폴백 분기를 제거합니다.
+        // common.js가 이 스크립트보다 먼저 실행되므로
+        // authHeaders는 항상 정의되어 있습니다.
         async function initYears() {
             const yearSelect = document.getElementById('sel-year');
             if (!yearSelect) return;
@@ -365,7 +364,6 @@
             if (btn) { btn.disabled = true; btn.textContent = '발송 중...'; }
 
             try {
-                // [FIX-Critical-①] authHeaders는 항상 정의되어 있으므로 폴백 분기 제거
                 const res  = await fetch('/api/send-mail', {
                     method : 'POST',
                     headers: authHeaders(),
