@@ -1,9 +1,14 @@
 // questions.js
-// [FIX-1] free 유저 limit 서버 강제 제한 추가 (클라이언트 우회 방지)
-// [FIX-2] Math.random() sort → Fisher-Yates 셔플로 교체 (통계적 균등성 보장)
-// [SEC-1] body.userStatus 폴백 완전 제거 — JWT 검증 실패 시 401 반환
-// [SEC-2] verifyUser 내부 오류 완전 방어
-// [FIX-3] exam_date int4(YYYYMMDD) 컬럼 → 연도 필터를 정수 범위로 수정
+// ─────────────────────────────────────────────────────────────────
+// 수정 이력
+// [FIX-High-1] premium 만료 처리 fire-and-forget → await + 실패 로그
+//              기존 .then(()=>{}).catch(()=>{}) 패턴은 업데이트 실패 시
+//              아무 흔적도 남기지 않아 만료 후에도 premium 접근이 허용될 수 있었음
+// [기존 유지]  free 유저 limit 서버 강제 제한 (클라이언트 우회 방지)
+// [기존 유지]  Fisher-Yates 셔플 (통계적 균등성 보장)
+// [기존 유지]  body.userStatus 폴백 완전 제거 — JWT 검증 실패 시 401 반환
+// [기존 유지]  exam_date int4(YYYYMMDD) 연도 필터 정수 범위 처리
+// ─────────────────────────────────────────────────────────────────
 
 import { createClient } from '@supabase/supabase-js';
 
@@ -43,12 +48,18 @@ async function verifyUser(req) {
     if (status === 'premium' && profile.expiry_date) {
       if (new Date(profile.expiry_date) < new Date()) {
         status = 'free';
-        supabase
+        // [FIX-High-1] fire-and-forget → await + 실패 로그
+        // 업데이트 실패 시에도 이번 요청의 status는 'free'로 처리되므로
+        // 보안 상 문제는 없으나, 다음 요청에서도 만료 처리를 반복하게 됩니다.
+        const { error: downgradeErr } = await supabase
           .from('users')
           .update({ user_status: 'free' })
-          .eq('id', user.id)
-          .then(() => {})
-          .catch(() => {});
+          .eq('id', user.id);
+        if (downgradeErr) {
+          console.error('[questions.js] premium 만료 처리 DB 업데이트 실패:', downgradeErr.message);
+        } else {
+          console.log('[questions.js] premium 만료 → free 처리 완료:', user.id);
+        }
       }
     }
 
@@ -60,7 +71,7 @@ async function verifyUser(req) {
 }
 
 // ─────────────────────────────────────────────────────────────────
-// [FIX-2] Fisher-Yates 셔플
+// Fisher-Yates 셔플
 // Math.random() 기반 sort()는 통계적으로 균등하지 않습니다.
 // Fisher-Yates는 모든 순열이 동등한 확률을 가집니다.
 // ─────────────────────────────────────────────────────────────────
@@ -133,8 +144,8 @@ export default async function handler(req, res) {
       100
     );
 
-    // [FIX-1] free 유저는 서버에서도 최대 20문제로 강제 제한
-    //         클라이언트에서 disabled를 우회해도 무효화됩니다.
+    // free 유저는 서버에서도 최대 20문제로 강제 제한
+    // 클라이언트에서 disabled를 우회해도 무효화됩니다.
     if (userStatus === 'free') {
       limitNum = Math.min(limitNum, 20);
     }
