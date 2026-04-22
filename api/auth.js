@@ -2,6 +2,13 @@
 // [C-1] 로그인 성공 시 Supabase access_token을 클라이언트에 반환.
 // [C-2] 이메일 미인증 체크, 비밀번호 재설정 액션 추가.
 // [FIX] profileError 발생 시 throw 대신 기본값(free) 처리 — users 행 없거나 RLS 오류 시 500 방지.
+// [FIX-5] 회원가입 시 미인증 상태에서 users 테이블에 즉시 insert하던 문제 수정.
+//         signUp 직후 insert를 제거하고, 로그인 성공(= 이메일 인증 완료) 시점에
+//         users 행이 없으면 자동 생성하는 기존 로직(5번)으로 일원화합니다.
+//         → 인증 메일을 클릭하지 않은 유령 행이 DB에 쌓이는 문제 해결
+//         → 단, Supabase Dashboard에서 auth trigger(on_auth_user_created)를
+//           사용하는 경우 이 파일의 로그인 시점 insert 로직과 중복되지 않도록
+//           trigger를 우선 사용하고 아래 insert 코드는 제거해도 됩니다.
 
 import { createClient } from '@supabase/supabase-js';
 
@@ -79,18 +86,23 @@ export default async function handler(req, res) {
         }
       }
 
-      // 5) users 행이 없으면 자동 생성 (회원가입 시 insert 누락 복구)
+      // 5) [FIX-5] users 행이 없으면 로그인 시점에 자동 생성
+      //    회원가입 시 insert를 제거했으므로, 이메일 인증 완료 후
+      //    첫 로그인 때 이 로직이 실행되어 행을 생성합니다.
       //    RLS 오류(42501)가 아닌 경우에만 시도합니다.
       const isRlsError = profileError?.message?.includes('42501') ||
                          profileError?.code === '42501';
       if (!userProfile && profileError && !isRlsError) {
-        console.log('[auth.js] users 행 자동 생성 시도:', data.user.id);
-        await supabase.from('users').insert([{
+        console.log('[auth.js] users 행 자동 생성 시도 (첫 로그인):', data.user.id);
+        const { error: insertError } = await supabase.from('users').insert([{
           id         : data.user.id,
           email      : data.user.email,
           name       : data.user.user_metadata?.name || '',
           user_status: 'free'
         }]);
+        if (insertError) {
+          console.error('[auth.js] users 행 자동 생성 실패:', insertError.message);
+        }
       }
 
       console.log('[auth.js] 로그인 성공:', email, '/ status:', status);
@@ -129,12 +141,35 @@ export default async function handler(req, res) {
       });
       if (error) throw error;
 
-      if (data.user?.id) {
+      // [FIX-5] 회원가입 직후 users 테이블 insert 제거
+      //         이유: 이 시점에서 사용자는 이메일 인증을 완료하지 않은 상태입니다.
+      //              미인증 유저가 DB에 행을 가지면 유령 계정이 누적됩니다.
+      //              대신 이메일 인증 후 첫 로그인 시(위 login 액션 5번)에 자동 생성됩니다.
+      //
+      //         [대안] Supabase Dashboard > Database > Functions에서
+      //                on_auth_user_created trigger를 설정하면 인증 완료 시점에
+      //                자동으로 users 행을 생성할 수 있습니다. (권장)
+      //
+      // 아래 주석 처리된 코드는 trigger를 사용하지 않는 환경에서
+      // 즉시 insert가 필요할 경우를 위해 참고용으로 보존합니다.
+      //
+      // if (data.user?.id) {
+      //   await supabase.from('users').insert([{ id: data.user.id, email, name, user_status: 'free' }]);
+      // }
+
+      // Supabase에서 이메일 확인이 비활성화된 경우(Confirm email = OFF),
+      // data.user가 즉시 반환되며 email_confirmed_at이 설정됩니다.
+      // 이 경우 users 행을 바로 생성해도 무방하므로 아래 조건으로 처리합니다.
+      if (data.user?.id && data.user?.email_confirmed_at) {
+        console.log('[auth.js] 이메일 확인 비활성화 환경 — 가입 즉시 users 행 생성:', data.user.id);
         const { error: insertError } = await supabase
           .from('users')
           .insert([{ id: data.user.id, email, name, user_status: 'free' }]);
         if (insertError) {
-          console.error('[auth.js] users insert 실패:', insertError.message);
+          // 중복 insert(이미 trigger로 생성된 경우)는 무시
+          if (!insertError.message.includes('duplicate') && !insertError.code === '23505') {
+            console.error('[auth.js] users insert 실패:', insertError.message);
+          }
         }
       }
 
