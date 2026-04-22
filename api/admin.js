@@ -1,7 +1,8 @@
 // admin.js
-// [C-1] 수정: body.userStatus를 신뢰하던 방식 → Authorization 헤더의 JWT를 검증하고
-//             DB에서 직접 user_status를 조회하는 방식으로 교체.
-//             클라이언트가 아무리 userStatus를 조작해도 서버에서 무효화됩니다.
+// [FIX-1] update-user: newStatus 허용값 검증 추가 (free/premium/admin 외 차단)
+// [FIX-2] delete-user: Auth 삭제 실패 시 경고 로그 유지 (DB는 이미 삭제됨)
+//         — Auth orphan 문제는 Supabase service_role 키 환경에서만 완전 해결 가능
+// [C-1] body.userStatus를 신뢰하던 방식 → JWT 검증으로 교체 (기존 유지)
 
 import { createClient } from '@supabase/supabase-js';
 
@@ -11,9 +12,7 @@ const supabase = createClient(
 );
 
 // ─────────────────────────────────────────────────────────────────
-// [C-1] 공통 JWT 검증 헬퍼
-// 클라이언트가 Authorization: Bearer <accessToken> 헤더를 전송해야 합니다.
-// 검증 성공 시 { id, user_status } 반환, 실패 시 null 반환.
+// JWT 검증 헬퍼
 // ─────────────────────────────────────────────────────────────────
 async function verifyUser(req) {
   const authHeader = req.headers.authorization;
@@ -21,11 +20,9 @@ async function verifyUser(req) {
 
   const token = authHeader.split(' ')[1];
 
-  // Supabase가 JWT를 검증하고 사용자 정보를 반환
   const { data: { user }, error } = await supabase.auth.getUser(token);
   if (error || !user) return null;
 
-  // DB에서 직접 권한 조회 (클라이언트 전달 값 사용 안 함)
   const { data: profile, error: profileError } = await supabase
     .from('users')
     .select('user_status')
@@ -37,6 +34,11 @@ async function verifyUser(req) {
   return { id: user.id, user_status: profile.user_status };
 }
 
+// ─────────────────────────────────────────────────────────────────
+// [FIX-1] 허용된 상태값 목록 — 서버에서 강제 검증
+// ─────────────────────────────────────────────────────────────────
+const VALID_STATUSES = ['free', 'premium', 'admin'];
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ message: 'Method Not Allowed' });
@@ -44,7 +46,6 @@ export default async function handler(req, res) {
 
   const { action } = req.query;
 
-  // [C-1] JWT 검증 — body의 userStatus는 완전히 무시
   const requester = await verifyUser(req);
   if (!requester) {
     return res.status(401).json({ message: 'Unauthorized: 유효하지 않은 토큰입니다.' });
@@ -53,7 +54,6 @@ export default async function handler(req, res) {
     return res.status(403).json({ message: 'Forbidden: 관리자 권한이 필요합니다.' });
   }
 
-  // body에서 필요한 값만 추출 (userStatus는 더 이상 사용하지 않음)
   const { targetUserId, newStatus, expiryDate, questionId, is_verified } = req.body;
 
   try {
@@ -92,6 +92,13 @@ export default async function handler(req, res) {
           return res.status(400).json({ message: 'targetUserId가 필요합니다.' });
         }
 
+        // [FIX-1] newStatus가 있을 때 허용된 값인지 검증
+        if (newStatus !== undefined && newStatus !== null && newStatus !== '') {
+          if (!VALID_STATUSES.includes(newStatus)) {
+            return res.status(400).json({ message: `유효하지 않은 상태값입니다. 허용값: ${VALID_STATUSES.join(', ')}` });
+          }
+        }
+
         const updateData = {};
         if (newStatus)  updateData.user_status  = newStatus;
         if (expiryDate) updateData.expiry_date  = expiryDate;
@@ -121,13 +128,19 @@ export default async function handler(req, res) {
           .eq('id', targetUserId);
         if (dbError) throw dbError;
 
-        // 2) Supabase Auth 계정도 삭제 (Service Role 필요)
-        //    users 테이블만 삭제하면 Auth에 orphan 레코드가 남아
-        //    해당 이메일로 재가입이 불가능해집니다.
+        // 2) Supabase Auth 계정 삭제 (Service Role 키 필요)
+        //    [FIX-2] Auth 삭제 실패 시 경고 로그 기록 후 200 반환
+        //    DB 삭제는 완료됐으므로 클라이언트에는 성공으로 안내하되,
+        //    orphan 계정은 Supabase 대시보드에서 수동 정리가 필요할 수 있습니다.
         const { error: authError } = await supabase.auth.admin.deleteUser(targetUserId);
         if (authError) {
-          // Auth 삭제 실패는 경고만 기록하고 200 반환 (DB는 이미 삭제됨)
-          console.error('[admin.js] Auth 계정 삭제 실패:', authError.message);
+          console.error(
+            '[admin.js] Auth 계정 삭제 실패 — Supabase 대시보드에서 수동 정리 필요:',
+            authError.message,
+            '/ targetUserId:', targetUserId
+          );
+        } else {
+          console.log('[admin.js] Auth 계정 삭제 완료:', targetUserId);
         }
 
         return res.status(200).json({ message: '사용자가 삭제되었습니다.' });
