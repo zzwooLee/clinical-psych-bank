@@ -76,15 +76,20 @@ function toYear(val) {
 // ─────────────────────────────────────────────────────────────────
 // [FIX-1] 뷰 또는 테이블 행 배열 → 연도 문자열 배열
 // 기존: Object.values(row)[0] → 컬럼 순서 변경 시 잘못된 값 반환
-// 수정: row.exam_date, row.year 순으로 명시적으로 접근
+// [FIX-High-⑤] 수정: exam_date → year → 첫 번째 숫자값 순으로 탐색
+//   · exam_date, year 컬럼이 없는 뷰에서도 첫 번째 숫자 컬럼을 연도로 사용
+//   · select('*')와 조합하여 컬럼 존재 여부에 독립적으로 동작합니다.
 // ─────────────────────────────────────────────────────────────────
 function extractYears(rows) {
   return rows
     .map(row => {
-      // exam_date 우선, 없으면 year 컬럼 사용
-      // Object.values(row)[0] 방식 제거 → 컬럼 순서에 독립적
-      const val = row.exam_date !== undefined ? row.exam_date : row.year;
-      return toYear(val);
+      // 1순위: exam_date 컬럼
+      if (row.exam_date !== undefined) return toYear(row.exam_date);
+      // 2순위: year 컬럼
+      if (row.year !== undefined)      return toYear(row.year);
+      // 3순위: 첫 번째 숫자 값 (뷰 컬럼명이 다를 경우 폴백)
+      const firstNumeric = Object.values(row).find(v => typeof v === 'number' || typeof v === 'string');
+      return toYear(firstNumeric);
     })
     .filter(Boolean);
 }
@@ -118,12 +123,14 @@ export default async function handler(req, res) {
         ? 'unique_years_premium'
         : 'unique_years_free';
 
-    // ── 1차: 뷰 조회 (exam_date 컬럼 명시적 select) ──────────
-    // [FIX-2] select('*') 대신 select('exam_date') 명시
-    //         뷰에 year 컬럼만 있는 경우를 위해 fallback으로 select('*') 유지
+    // ── 1차: 뷰 조회 ──────────────────────────────
+    // [FIX-High-⑤] 기존 select('exam_date, year')는 뷰에 두 컬럼이 모두 없으면
+    //              Supabase가 컬럼 오류를 반환합니다.
+    // 수정: select('*')로 전체를 받은 후 extractYears에서 유연하게 파싱합니다.
+    // extractYears는 exam_date → year → 첫 번째 숫자 값 순으로 탐색합니다.
     const { data: viewData, error: viewError } = await supabase
       .from(viewName)
-      .select('exam_date, year');  // 두 컬럼 모두 시도 — 없는 컬럼은 undefined로 반환됨
+      .select('*');
 
     if (!viewError && viewData?.length > 0) {
       console.log(
@@ -139,8 +146,9 @@ export default async function handler(req, res) {
         console.warn(`[years.js] 뷰 "${viewName}" 결과 없음 → 직접 쿼리 폴백`);
       }
 
-      // [FIX-2] select('exam_date') 명시 — select('*') 불필요한 컬럼 제거
-      let q = supabase.from('questions').select('exam_date');
+      // [FIX-High-⑤] select('exam_date') → select('*')로 통일
+      //              extractYears가 컬럼명에 독립적으로 처리하므로 안전합니다.
+      let q = supabase.from('questions').select('*');
       if (userStatus === 'free')    q = q.eq('is_premium', false);
       if (userStatus === 'premium') q = q.eq('is_verified', true);
 
