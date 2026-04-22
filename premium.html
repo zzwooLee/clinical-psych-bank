@@ -213,8 +213,9 @@
     </div>
 
     <script src="premium-info.js"></script>
-    <script src="common.js"></script>
-    <script>
+    <!-- [FIX] defer 추가 — DOMContentLoaded 전에 authHeaders가 정의됨을 보장 -->
+    <script src="common.js" defer></script>
+    <script defer>
         /* ── 과목 데이터 ── */
         const subjectData = {
             "1": ["고급임상심리학", "고급이상심리학", "고급심리검사", "고급심리치료", "고급연구방법론"],
@@ -361,15 +362,15 @@
             const btn = document.querySelector('.btn-email-apply');
             if (btn) { btn.disabled = true; btn.textContent = '발송 중...'; }
 
-            const _u        = JSON.parse(sessionStorage.getItem('quiz_user') || '{}');
-            const userEmail = _u.email || '';
-            const userName  = _u.name  || '';
-
             try {
+                // [FIX] authHeaders()로 JWT 인증 헤더 포함
+                //       서버에서 JWT로 이메일/이름을 직접 조회하므로 body에 개인정보 불필요
                 const res  = await fetch('/api/send-mail', {
                     method : 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body   : JSON.stringify({ userEmail, userName })
+                    headers: (typeof authHeaders === 'function')
+                        ? authHeaders()
+                        : { 'Content-Type': 'application/json' },
+                    body   : JSON.stringify({})
                 });
                 const data = await res.json();
 
