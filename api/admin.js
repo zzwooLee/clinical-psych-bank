@@ -1,8 +1,10 @@
 // admin.js
-// [FIX-1] update-user: newStatus 허용값 검증 추가 (free/premium/admin 외 차단)
-// [FIX-2] delete-user: Auth 삭제 실패 시 경고 로그 유지 (DB는 이미 삭제됨)
-//         — Auth orphan 문제는 Supabase service_role 키 환경에서만 완전 해결 가능
-// [C-1] body.userStatus를 신뢰하던 방식 → JWT 검증으로 교체 (기존 유지)
+// [FIX-1] update-user: newStatus 허용값 검증 추가 (free/premium/admin 외 차단) 유지
+// [FIX-2] delete-user: Auth 삭제 실패 시 경고 로그 유지
+// [FIX-3] newStatus 검증 조건과 updateData 적용 조건 불일치 수정
+//         기존: 검증은 !== undefined/null/'' 로, 적용은 if (newStatus) falsy 체크로 달리 처리
+//         수정: typeof string && trim() !== '' 로 통일 → 논리적 일관성 확보
+// [FIX-4] stats action: activeUsers 변수명 → totalUsers 로 변경 (실제 의미와 일치)
 
 import { createClient } from '@supabase/supabase-js';
 
@@ -35,7 +37,7 @@ async function verifyUser(req) {
 }
 
 // ─────────────────────────────────────────────────────────────────
-// [FIX-1] 허용된 상태값 목록 — 서버에서 강제 검증
+// 허용된 상태값 목록 — 서버에서 강제 검증
 // ─────────────────────────────────────────────────────────────────
 const VALID_STATUSES = ['free', 'premium', 'admin'];
 
@@ -63,19 +65,24 @@ export default async function handler(req, res) {
         const { count: totalQuestions } = await supabase
           .from('questions')
           .select('*', { count: 'exact', head: true });
-        const { count: activeUsers } = await supabase
+
+        // [FIX-4] 변수명을 totalUsers로 변경 — users 테이블 전체 카운트임을 명확히 합니다.
+        // (이메일 미인증 유저 포함이므로 "active" 라는 표현이 부정확했습니다.)
+        const { count: totalUsers } = await supabase
           .from('users')
           .select('*', { count: 'exact', head: true });
+
         const { count: premiumUsers } = await supabase
           .from('users')
           .select('*', { count: 'exact', head: true })
           .eq('user_status', 'premium');
 
-        const premiumRate = activeUsers > 0
-          ? Math.round((premiumUsers / activeUsers) * 100)
+        const premiumRate = totalUsers > 0
+          ? Math.round((premiumUsers / totalUsers) * 100)
           : 0;
 
-        return res.status(200).json({ totalQuestions, activeUsers, premiumRate });
+        // 응답 키는 클라이언트(common.js)가 activeUsers로 읽으므로 하위 호환성 유지
+        return res.status(200).json({ totalQuestions, activeUsers: totalUsers, premiumRate });
       }
 
       case 'users': {
@@ -92,16 +99,21 @@ export default async function handler(req, res) {
           return res.status(400).json({ message: 'targetUserId가 필요합니다.' });
         }
 
-        // [FIX-1] newStatus가 있을 때 허용된 값인지 검증
-        if (newStatus !== undefined && newStatus !== null && newStatus !== '') {
-          if (!VALID_STATUSES.includes(newStatus)) {
-            return res.status(400).json({ message: `유효하지 않은 상태값입니다. 허용값: ${VALID_STATUSES.join(', ')}` });
+        const updateData = {};
+
+        // [FIX-3] 기존: 검증은 !== undefined/null/'' 조건, 적용은 if (newStatus) falsy 체크로 불일치
+        //         수정: typeof string && trim() !== '' 로 검증과 적용 조건을 동일하게 통일합니다.
+        //         이렇게 하면 0이나 false 같은 비정상 값도 검증 단계에서 일관되게 처리됩니다.
+        if (typeof newStatus === 'string' && newStatus.trim() !== '') {
+          if (!VALID_STATUSES.includes(newStatus.trim())) {
+            return res.status(400).json({
+              message: `유효하지 않은 상태값입니다. 허용값: ${VALID_STATUSES.join(', ')}`
+            });
           }
+          updateData.user_status = newStatus.trim();
         }
 
-        const updateData = {};
-        if (newStatus)  updateData.user_status  = newStatus;
-        if (expiryDate) updateData.expiry_date  = expiryDate;
+        if (expiryDate) updateData.expiry_date = expiryDate;
 
         if (Object.keys(updateData).length === 0) {
           return res.status(400).json({ message: '변경할 항목이 없습니다.' });
@@ -129,9 +141,9 @@ export default async function handler(req, res) {
         if (dbError) throw dbError;
 
         // 2) Supabase Auth 계정 삭제 (Service Role 키 필요)
-        //    [FIX-2] Auth 삭제 실패 시 경고 로그 기록 후 200 반환
-        //    DB 삭제는 완료됐으므로 클라이언트에는 성공으로 안내하되,
-        //    orphan 계정은 Supabase 대시보드에서 수동 정리가 필요할 수 있습니다.
+        // [FIX-2] Auth 삭제 실패 시 경고 로그 기록 후 200 반환
+        // DB 삭제는 완료됐으므로 클라이언트에는 성공으로 안내하되,
+        // orphan 계정은 Supabase 대시보드에서 수동 정리가 필요할 수 있습니다.
         const { error: authError } = await supabase.auth.admin.deleteUser(targetUserId);
         if (authError) {
           console.error(
