@@ -114,9 +114,9 @@ export default async function handler(req, res) {
     if (userStatus === 'free') {
       query = query.eq('is_premium', false);
     } else if (userStatus === 'premium') {
-      // is_verified 조건 제거
-      // explanation에 "자료 외 정보" 텍스트가 없는 경우만 노출
-      query = query.or('explanation.is.null,explanation.not.ilike.%자료 외 정보%');
+      query = query
+        .not('explanation', 'is', null)
+        .not('explanation', 'ilike', '%자료 외 정보%');
     }
     // admin: 제한 없음
 
