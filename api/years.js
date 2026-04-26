@@ -152,8 +152,9 @@ export default async function handler(req, res) {
 
       let q = supabase.from('questions').select('*');
       if (userStatus === 'free')    q = q.eq('is_premium', false);
-      if (userStatus === 'premium') q = q.eq('is_verified', true);
-
+      if (userStatus === 'premium') {
+        q = q.or('explanation.is.null,explanation.not.ilike.%자료 외 정보%');
+      }
       const { data: qData, error: qError } = await q;
       if (qError) {
         console.error('[years.js] 직접 쿼리 오류:', qError.message);
