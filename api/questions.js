@@ -4,6 +4,8 @@
 // [FIX-High-1] premium 만료 처리 fire-and-forget → await + 실패 로그
 //              기존 .then(()=>{}).catch(()=>{}) 패턴은 업데이트 실패 시
 //              아무 흔적도 남기지 않아 만료 후에도 premium 접근이 허용될 수 있었음
+// [FIX-High-2] Cache-Control: no-store 헤더 추가
+//              로그아웃 후 브라우저/CDN 캐시에서 이전 문제 데이터가 재사용되는 것을 방지
 // [기존 유지]  free 유저 limit 서버 강제 제한 (클라이언트 우회 방지)
 // [기존 유지]  Fisher-Yates 셔플 (통계적 균등성 보장)
 // [기존 유지]  body.userStatus 폴백 완전 제거 — JWT 검증 실패 시 401 반환
@@ -48,9 +50,6 @@ async function verifyUser(req) {
     if (status === 'premium' && profile.expiry_date) {
       if (new Date(profile.expiry_date) < new Date()) {
         status = 'free';
-        // [FIX-High-1] fire-and-forget → await + 실패 로그
-        // 업데이트 실패 시에도 이번 요청의 status는 'free'로 처리되므로
-        // 보안 상 문제는 없으나, 다음 요청에서도 만료 처리를 반복하게 됩니다.
         const { error: downgradeErr } = await supabase
           .from('users')
           .update({ user_status: 'free' })
@@ -91,6 +90,10 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ message: 'Method Not Allowed' });
   }
+
+  // [FIX-High-2] 캐시 방지 헤더 — years.js와 동일한 패턴
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
 
   const verified = await verifyUser(req);
   if (!verified) {
