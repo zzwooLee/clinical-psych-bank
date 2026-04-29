@@ -7,6 +7,10 @@
 // [기존 유지]  extractYears: exam_date → year → 첫 번째 숫자값 순으로 탐색
 // [기존 유지]  body.userStatus 폴백 완전 제거 — JWT 검증 실패 시 401 반환
 // [기존 유지]  select('*') 유연 파싱 (컬럼명 독립)
+// [NEW] grade 파라미터 수신 — premium 유저에게 급수별 연도 필터링 적용
+//       unique_years_premium 뷰는 explanation 완전성 조건을 포함하므로
+//       grade가 주어지면 뷰 결과를 grade로 추가 필터링합니다.
+//       free / admin 유저는 grade 파라미터를 무시하고 기존 동작을 유지합니다.
 // ─────────────────────────────────────────────────────────────────
 
 import { createClient } from '@supabase/supabase-js';
@@ -120,6 +124,19 @@ export default async function handler(req, res) {
   const userStatus = verified.user_status;
   console.log('[years.js] 최종 userStatus:', userStatus);
 
+  // [NEW] grade 파라미터 수신
+  // premium 유저에게만 적용되며, free / admin은 무시합니다.
+  const { grade } = req.body;
+  const gradeValue = grade && String(grade).trim() !== '' ? String(grade).trim() : null;
+
+  // [NEW] premium 유저가 급수를 선택하지 않은 경우 빈 배열 반환
+  // 클라이언트(premium.html)에서 급수 미선택 시 API를 호출하지 않도록
+  // 처리하지만, 혹시 호출되더라도 빈 배열로 안전하게 응답합니다.
+  if (userStatus === 'premium' && !gradeValue) {
+    console.log('[years.js] premium 유저 — grade 미선택 → 빈 배열 반환');
+    return res.status(200).json([]);
+  }
+
   try {
     let years = [];
 
@@ -130,11 +147,16 @@ export default async function handler(req, res) {
         : 'unique_years_free';
 
     // ── 1차: 뷰 조회 ──────────────────────────────
-    // select('*')로 전체를 받은 후 extractYears에서 유연하게 파싱합니다.
-    // extractYears는 exam_date → year → 첫 번째 숫자 값 순으로 탐색합니다.
-    const { data: viewData, error: viewError } = await supabase
-      .from(viewName)
-      .select('*');
+    // [NEW] premium 유저는 grade 컬럼으로 추가 필터링합니다.
+    //       unique_years_premium 뷰는 explanation 완전성 조건을 포함하므로
+    //       grade 필터만 추가하면 원하는 결과를 얻을 수 있습니다.
+    //       free / admin 유저는 grade 파라미터를 무시하고 전체 연도를 반환합니다.
+    let viewQuery = supabase.from(viewName).select('*');
+    if (userStatus === 'premium' && gradeValue) {
+      viewQuery = viewQuery.eq('grade', gradeValue);
+    }
+
+    const { data: viewData, error: viewError } = await viewQuery;
 
     if (!viewError && viewData?.length > 0) {
       console.log(
@@ -151,12 +173,20 @@ export default async function handler(req, res) {
       }
 
       let q = supabase.from('questions').select('*');
-      if (userStatus === 'free')    q = q.eq('is_premium', false);
-      if (userStatus === 'premium') {
+
+      // [NEW] premium 폴백: grade 필터 + explanation 완전성은
+      //       뷰와 동일한 조건을 직접 쿼리에도 적용합니다.
+      if (userStatus === 'free') {
+        q = q.eq('is_premium', false);
+      } else if (userStatus === 'premium') {
+        if (gradeValue) q = q.eq('grade', gradeValue);
         q = q
           .not('explanation', 'is', null)
           .not('explanation', 'ilike', '%자료 외 정보%');
       }
+
+      // [NEW] admin / free 폴백에서 grade 파라미터는 무시합니다.
+
       const { data: qData, error: qError } = await q;
       if (qError) {
         console.error('[years.js] 직접 쿼리 오류:', qError.message);
@@ -166,6 +196,12 @@ export default async function handler(req, res) {
         '[years.js] 직접 쿼리 건수:', qData?.length,
         '샘플:', qData?.slice(0, 3)
       );
+
+      // [NEW] premium 폴백: explanation 완전성 조건을 연도 단위로 재적용합니다.
+      // 직접 쿼리는 "explanation이 있는 문제만" 반환하므로,
+      // 해당 (grade, 연도) 조합의 전체 문제 수와 비교해야 완전성을 보장할 수 없습니다.
+      // 따라서 폴백에서는 explanation이 있는 문제의 연도만 추출하는 방식으로
+      // 뷰와 동일한 결과를 근사합니다. (뷰가 정상 동작하는 환경이 권장됩니다.)
       years = extractYears(qData || []);
     }
 
