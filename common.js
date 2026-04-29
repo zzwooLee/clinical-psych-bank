@@ -1,12 +1,22 @@
 /* common.js */
 // ─────────────────────────────────────────────────────────────────
 // 수정 이력
-// [FIX-High-1] handleLogout — 로그아웃 시 btn-admin-menu 명시적 숨김 처리
-//              index.html에서 로그인→로그아웃→재로그인 시 admin 버튼이
-//              이전 display:inline-block 상태를 유지하는 문제 수정
-// [FIX-High-2] forceLogout (자동 로그아웃) — 동일하게 btn-admin-menu 숨김 처리
-// [기존 유지]  STORAGE_KEY 전역 상수화, setupAutoLogout 모듈,
-//              escapeHtml, authHeaders, 퀴즈 엔진, 관리자 기능 전체
+// [FIX-Critical-1] checkAnswer — `correct` 변수로 선언 후 `safeCorrect`로
+//                  참조하던 버그 수정. parseInt()로 정수 변환 후 변수명 통일.
+//                  이 버그로 인해 답 선택 시 ReferenceError 발생 →
+//                  정답 확인 및 해설이 전혀 표시되지 않던 문제 해결.
+// [FIX-High-1]    handleLogout — 로그아웃 시 btn-admin-menu 명시적 숨김 처리
+//                  index.html에서 로그인→로그아웃→재로그인 시 admin 버튼이
+//                  이전 display:inline-block 상태를 유지하는 문제 수정
+// [FIX-High-2]    forceLogout (자동 로그아웃) — 동일하게 btn-admin-menu 숨김 처리
+// [FIX-Medium-1]  updateUserUI — catch 블록 이후 코드가 같은 줄에 붙어있던
+//                  가독성 문제 해소 (동작 무해, 유지보수성 개선)
+// [FIX-Medium-2]  deleteUser — 삭제 실패 시 else 분기 에러 메시지 표시 추가
+// [FIX-Medium-3]  setExpiryDate — 만료일 수정 실패 시 else 분기 에러 메시지 추가
+// [FIX-Low-1]     currentUser / currentTargetUserId 선언 — 한 줄에 합쳐있던 것을
+//                  별도 줄로 분리하여 가독성 개선
+// [기존 유지]     STORAGE_KEY 전역 상수화, setupAutoLogout 모듈,
+//                 escapeHtml, authHeaders, 퀴즈 엔진, 관리자 기능 전체
 // ─────────────────────────────────────────────────────────────────
 
 const QUIZ_STORAGE_KEY = 'quiz_last_active';
@@ -160,11 +170,15 @@ window._quizStorageKey = QUIZ_STORAGE_KEY;
 // ─────────────────────────────────────────────
 let allQuestions = [];
 let currentIndex = 0;
+
 function safeParseUser() {
     try { return JSON.parse(sessionStorage.getItem('quiz_user')); }
     catch { sessionStorage.removeItem('quiz_user'); return null; }
 }
-let currentUser = safeParseUser() || { email: '', status: 'free' };let currentTargetUserId = null;
+
+// [FIX-Low-1] 두 변수 선언을 별도 줄로 분리 (가독성 개선)
+let currentUser         = safeParseUser() || { email: '', status: 'free' };
+let currentTargetUserId = null;
 
 // ─────────────────────────────────────────────────────────────────
 // XSS 방어 헬퍼
@@ -223,6 +237,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
+// [FIX-Medium-1] catch 블록 이후 코드를 별도 줄로 분리하여 가독성 개선
 function updateUserUI() {
     const savedUser = sessionStorage.getItem('quiz_user');
     if (savedUser) {
@@ -231,7 +246,8 @@ function updateUserUI() {
         } catch {
             sessionStorage.removeItem('quiz_user');
             return;
-        }        const nameEl   = document.getElementById('display-name');
+        }
+        const nameEl   = document.getElementById('display-name');
         const statusEl = document.getElementById('display-status');
         if (nameEl)   nameEl.innerText   = currentUser.name || currentUser.email;
         if (statusEl) statusEl.innerText = (currentUser.status || 'free').toUpperCase();
@@ -512,11 +528,8 @@ function renderQuestion() {
     const q           = allQuestions[currentIndex];
     const displayYear = q.exam_date ? String(q.exam_date).substring(0, 4) + '년' : '';
 
-    const safeQuestion    = escapeHtml(q.question);
-    const safeCategory    = escapeHtml(q.category);
-    const safeExplanation = q.explanation
-        ? escapeHtml(q.explanation).replace(/\n/g, '<br>')
-        : '';
+    const safeQuestion = escapeHtml(q.question);
+    const safeCategory = escapeHtml(q.category);
 
     area.innerHTML = `
         <div class="card">
@@ -542,21 +555,25 @@ function renderQuestion() {
     `;
 }
 
+// [FIX-Critical-1] `correct` 변수로 선언 후 `safeCorrect`로 참조하던 버그 수정.
+// 변수명을 `safeCorrect`로 통일하고, parseInt()로 정수 변환하여
+// DB 값이 문자열("2")로 오더라도 [1,2,3,4].includes() 검증이 올바르게 동작하도록 수정.
 window.checkAnswer = function (selected) {
-    const q         = allQuestions[currentIndex];
-    const correct   = q.answer;
-    const resultBox = document.getElementById('result-box');
-    const btns      = document.querySelectorAll('.choice-btn');
+    const q           = allQuestions[currentIndex];
+    const safeCorrect = parseInt(q.answer, 10); // ← 핵심 수정: 변수명 통일 + 정수 변환
+    const resultBox   = document.getElementById('result-box');
+    const btns        = document.querySelectorAll('.choice-btn');
 
     btns.forEach(btn => (btn.style.pointerEvents = 'none'));
 
     if (![1, 2, 3, 4].includes(safeCorrect)) {
-        resultBox.innerHTML = '<div style="color:#e74c3c;">문제 데이터 오류입니다.</div>';
+        resultBox.innerHTML     = '<div style="color:#e74c3c;">문제 데이터 오류입니다.</div>';
         resultBox.style.display = 'block';
         return;
     }
+
     let resultHTML = '';
-    if (selected == safeCorrect) {
+    if (selected === safeCorrect) {
         document.getElementById(`choice-${selected}`).style.borderColor     = '#2ecc71';
         document.getElementById(`choice-${selected}`).style.backgroundColor = '#eafaf2';
         resultHTML = `<div style="color:#2ecc71; font-weight:800; font-size:1.2rem; margin-bottom:10px;">✅ 정답입니다!</div>`;
@@ -784,6 +801,7 @@ async function executeStatusUpdate(userId, newStatus, expiry) {
     } catch (e) { showAlert('오류', '통신 실패'); }
 }
 
+// [FIX-Medium-3] 만료일 수정 실패 시 else 분기 에러 메시지 추가
 window.setExpiryDate = function (userId) {
     currentTargetUserId = userId;
     const modal     = document.getElementById('custom-modal');
@@ -796,23 +814,29 @@ window.setExpiryDate = function (userId) {
 
     document.getElementById('modal-confirm-btn').onclick = async () => {
         if (!dateInput.value) return;
-        const response = await fetch('/api/admin/update-user', {
-            method : 'POST',
-            headers: authHeaders(),
-            body   : JSON.stringify({
-                targetUserId: userId,
-                expiryDate  : dateInput.value
-            })
-        });
-        if (response.ok) {
-            closeCustomModal();
-            showAlert('성공', '날짜가 업데이트되었습니다.');
-            refreshAdminDashboard();
-        }
+        try {
+            const response = await fetch('/api/admin/update-user', {
+                method : 'POST',
+                headers: authHeaders(),
+                body   : JSON.stringify({
+                    targetUserId: userId,
+                    expiryDate  : dateInput.value
+                })
+            });
+            if (response.ok) {
+                closeCustomModal();
+                showAlert('성공', '날짜가 업데이트되었습니다.');
+                refreshAdminDashboard();
+            } else {
+                const err = await response.json();
+                showAlert('오류', err.message || '날짜 업데이트 실패');
+            }
+        } catch (e) { showAlert('오류', '통신 실패'); }
     };
     modal.style.display = 'flex';
 };
 
+// [FIX-Medium-2] 삭제 실패 시 else 분기 에러 메시지 표시 추가
 window.deleteUser = function (userId, email) {
     const modal = document.getElementById('custom-modal');
     document.getElementById('modal-title').innerText = '회원 삭제';
@@ -821,16 +845,21 @@ window.deleteUser = function (userId, email) {
     document.getElementById('modal-cancel-btn').style.display = 'inline-block';
 
     document.getElementById('modal-confirm-btn').onclick = async () => {
-        const response = await fetch('/api/admin/delete-user', {
-            method : 'POST',
-            headers: authHeaders(),
-            body   : JSON.stringify({ targetUserId: userId })
-        });
-        if (response.ok) {
-            closeCustomModal();
-            showAlert('성공', '삭제되었습니다.');
-            refreshAdminDashboard();
-        }
+        try {
+            const response = await fetch('/api/admin/delete-user', {
+                method : 'POST',
+                headers: authHeaders(),
+                body   : JSON.stringify({ targetUserId: userId })
+            });
+            if (response.ok) {
+                closeCustomModal();
+                showAlert('성공', '삭제되었습니다.');
+                refreshAdminDashboard();
+            } else {
+                const err = await response.json();
+                showAlert('오류', err.message || '삭제 실패');
+            }
+        } catch (e) { showAlert('오류', '통신 실패'); }
     };
     modal.style.display = 'flex';
 };
