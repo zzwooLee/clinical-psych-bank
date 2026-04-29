@@ -117,9 +117,7 @@ export default async function handler(req, res) {
     if (userStatus === 'free') {
       query = query.eq('is_premium', false);
     } else if (userStatus === 'premium') {
-      query = query
-        .not('explanation', 'is', null)
-        .not('explanation', 'ilike', '%자료 외 정보%');
+      query = query.not('explanation', 'is', null)
     }
     // admin: 제한 없음
 
