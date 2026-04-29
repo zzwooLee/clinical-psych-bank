@@ -74,6 +74,9 @@
 
         /* ── 자동 로그아웃 모달 ── */
         #auto-logout-modal .modal-content h3 { color: #e53e3e; }
+
+        /* ── [NEW] 연도 로딩 인디케이터 ── */
+        #sel-year:disabled { color: #a0aec0; }
     </style>
 </head>
 <body class="premium-body">
@@ -229,10 +232,21 @@
             "2": ["심리학개론", "이상심리학", "심리검사", "임상심리학", "심리상담"]
         };
 
+        // ─────────────────────────────────────────────────────────────────
+        // updateSubjects
+        // 급수(grade) 변경 시:
+        //   1) 과목 목록 갱신
+        //   2) initYears(grade) 호출 → 연도 목록 갱신
+        //
+        // [NEW] premium 유저: 급수 선택 시에만 연도 API 호출
+        //       급수 미선택("전체") 시 연도 목록 초기화
+        //       free / admin 유저: 기존과 동일하게 급수와 무관하게 전체 연도 표시
+        // ─────────────────────────────────────────────────────────────────
         function updateSubjects() {
             const grade          = document.getElementById('sel-grade').value;
             const categorySelect = document.getElementById('sel-category');
             if (!categorySelect) return;
+
             categorySelect.innerHTML = '<option value="">과목 전체</option>';
             if (grade && subjectData[grade]) {
                 subjectData[grade].forEach(sub => {
@@ -241,20 +255,53 @@
                     categorySelect.add(opt);
                 });
             }
+
+            // [NEW] 급수 변경 시 연도 목록 갱신
+            // · premium 유저: grade를 넘겨 서버에서 explanation 완전성 필터 적용
+            // · free / admin 유저: grade 파라미터를 무시하므로 동일하게 전달해도 무방
+            initYears(grade);
         }
 
-        /* ── 연도 초기화 ── */
-        // common.js가 이 스크립트보다 먼저 실행되므로
-        // authHeaders는 항상 정의되어 있습니다.
-        async function initYears() {
+        // ─────────────────────────────────────────────────────────────────
+        // initYears(grade)
+        // [NEW] grade 파라미터 추가
+        //
+        // · premium 유저 + grade 미선택: 연도 목록을 초기화하고 API 미호출
+        //   → unique_years_premium 뷰가 explanation 완전성 조건을 포함하므로
+        //     급수 없이 전체 연도를 표시하면 의미 없는 연도가 섞일 수 있음
+        // · premium 유저 + grade 선택: grade를 body에 포함하여 API 호출
+        //   → 서버에서 해당 급수의 explanation 완전성 조건을 충족하는 연도만 반환
+        // · free / admin 유저: grade 파라미터 전달하지만 서버에서 무시
+        //   → 기존과 동일하게 전체 연도 목록 반환
+        // ─────────────────────────────────────────────────────────────────
+        async function initYears(grade = '') {
             const yearSelect = document.getElementById('sel-year');
             if (!yearSelect) return;
+
+            // [NEW] 현재 로그인 유저 등급 확인
+            const user = JSON.parse(sessionStorage.getItem('quiz_user') || '{}');
+            const isPremium = user.status === 'premium';
+
+            // [NEW] premium 유저가 급수를 선택하지 않은 경우
+            // 연도 목록을 초기화하고 API를 호출하지 않습니다.
+            if (isPremium && !grade) {
+                yearSelect.innerHTML = '<option value="">급수를 먼저 선택하세요</option>';
+                yearSelect.disabled  = false;
+                return;
+            }
+
+            // 로딩 상태 표시
+            yearSelect.innerHTML = '<option value="">로딩 중...</option>';
+            yearSelect.disabled  = true;
 
             try {
                 const response = await fetch('/api/years', {
                     method : 'POST',
                     headers: authHeaders(),
-                    body   : JSON.stringify({})
+                    // [NEW] grade를 body에 포함하여 전달
+                    // · premium 유저: 서버에서 grade로 필터링 후 explanation 완전성 검사
+                    // · free / admin 유저: 서버에서 grade 무시
+                    body   : JSON.stringify({ grade })
                 });
 
                 // 세션 만료 시 로그인 페이지로 이동
@@ -273,7 +320,12 @@
                     opt.value = year; opt.text = year + '년';
                     yearSelect.add(opt);
                 });
-            } catch (e) { console.error('연도 로드 실패:', e); }
+            } catch (e) {
+                console.error('연도 로드 실패:', e);
+                yearSelect.innerHTML = '<option value="">연도 전체</option>';
+            } finally {
+                yearSelect.disabled = false;
+            }
         }
 
         /* ── 초기화 ── */
@@ -296,8 +348,9 @@
                 }
             }
 
-            // common.js가 동기 로드되므로 authHeaders는 이미 정의되어 있습니다.
-            initYears();
+            // [NEW] updateSubjects()를 호출하면 내부에서 initYears('')도 함께 호출됩니다.
+            // · premium 유저: 급수 미선택 상태이므로 연도 목록을 "급수를 먼저 선택하세요"로 초기화
+            // · free / admin 유저: grade='' 로 initYears 호출 → 전체 연도 목록 로드
             updateSubjects();
         });
 
