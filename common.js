@@ -587,6 +587,8 @@ window.checkAnswer = function (selected) {
     }
 
     if (q.explanation && currentUser.status !== 'free') {
+        // [FIX-2025-2] free 유저에게는 해설 미표시
+        // premium/admin 유저에게만 해설 블록 렌더링
         const isBroken = q.explanation.includes('자료 외 정보');
         const safeExp  = isBroken
             ? '해설에 문제가 있어 수정 중입니다.'
