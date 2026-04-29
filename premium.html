@@ -314,7 +314,7 @@
                 return;
             }
 
-            // free 유저: 업그레이드 버튼 표시 + 문제 수 고정
+            // free 유저: 업그레이드 버튼 표시 + 문제 수 고정 + 연도 필터 비활성화
             if (user.status === 'free') {
                 const upgradeBtn = document.getElementById('btn-upgrade');
                 if (upgradeBtn) upgradeBtn.style.display = 'inline-block';
@@ -323,6 +323,14 @@
                 if (limitSelect) {
                     limitSelect.innerHTML = '<option value="20">20문제</option>';
                     limitSelect.disabled  = true;
+                }
+
+                // [FIX-2025-3] 연도 필터 비활성화 — free 유저는 연도 선택 불가
+                const yearSelect = document.getElementById('sel-year');
+                if (yearSelect) {
+                    yearSelect.innerHTML = '<option value="">연도 전체</option>';
+                    yearSelect.disabled  = true;
+                    yearSelect.title     = '프리미엄 회원 전용 기능입니다.';
                 }
             }
 
