@@ -15,6 +15,12 @@
 //         뷰가 정상 동작했으나 결과가 0건인 경우는 "해당 조건을 충족하는 연도 없음"
 //         이므로 빈 배열을 즉시 반환합니다. 폴백으로 넘어가면 explanation 완전성
 //         조건을 우회하여 의도하지 않은 연도가 표시될 수 있습니다.
+// [FIX-2025-3] free 유저 연도 필터 완전 차단
+//              변경 전: unique_years_free 뷰로 연도 목록 제공
+//              변경 후: free 유저는 빈 배열 즉시 반환 → 연도 select 비활성화
+// [FIX-2025-4] premium 폴백 쿼리 조건 수정
+//              변경 전: explanation IS NOT NULL + 자료 외 정보 제외
+//              변경 후: is_premium=TRUE AND explanation IS NOT NULL (questions.js와 일치)
 // ─────────────────────────────────────────────────────────────────
 
 import { createClient } from '@supabase/supabase-js';
@@ -133,6 +139,14 @@ export default async function handler(req, res) {
   const { grade } = req.body;
   const gradeValue = grade && String(grade).trim() !== '' ? String(grade).trim() : null;
 
+  // [FIX-2025-3] free 유저: 연도 필터 미제공 — 빈 배열 즉시 반환
+  // 클라이언트(premium.html)에서 sel-year를 disabled 처리하므로
+  // 정상 흐름에서는 호출되지 않지만, 직접 호출 우회를 서버에서도 차단합니다.
+  if (userStatus === 'free') {
+    console.log('[years.js] free 유저 — 연도 필터 미제공 → 빈 배열 반환');
+    return res.status(200).json([]);
+  }
+
   // [NEW-1] premium 유저가 급수를 선택하지 않은 경우 빈 배열 반환
   // 클라이언트(premium.html)에서 급수 미선택 시 API를 호출하지 않도록
   // 처리하지만, 혹시 호출되더라도 빈 배열로 안전하게 응답합니다.
@@ -185,7 +199,7 @@ export default async function handler(req, res) {
     } else {
       // ── 2차: questions 직접 쿼리 폴백 ────────────────────────
       // 뷰 자체에 오류(viewError)가 있을 때만 진입합니다.
-      // free / admin 유저의 0건은 폴백을 허용합니다.
+      // free 유저는 상단에서 이미 차단되므로 admin/premium 유저만 진입합니다.
       if (viewError) {
         console.warn(`[years.js] 뷰 "${viewName}" 오류:`, viewError.message, viewError.code);
       } else {
@@ -194,16 +208,14 @@ export default async function handler(req, res) {
 
       let q = supabase.from('questions').select('*');
 
-      if (userStatus === 'free') {
-        q = q.eq('is_premium', false);
-      } else if (userStatus === 'premium') {
-        // [NEW-1] premium 폴백: grade 필터 + explanation 완전성 조건 적용
-        // 단, 뷰 오류 시에만 이 분기에 진입하므로 완전성 보장은 근사치입니다.
-        // (뷰가 정상 동작하는 환경이 권장됩니다.)
+      // [FIX-2025-3] free 유저는 상단에서 빈 배열로 즉시 반환되므로 이 분기에 진입하지 않음
+      // admin은 제한 없음. premium만 아래 조건 적용.
+      if (userStatus === 'premium') {
+        // [FIX-2025-4] questions.js와 동일한 조건: is_premium=TRUE AND explanation IS NOT NULL
         if (gradeValue) q = q.eq('grade', gradeValue);
         q = q
-          .not('explanation', 'is', null)
-          .not('explanation', 'ilike', '%자료 외 정보%');
+          .eq('is_premium', true)
+          .not('explanation', 'is', null);
       }
 
       const { data: qData, error: qError } = await q;
