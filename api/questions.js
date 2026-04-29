@@ -10,6 +10,14 @@
 // [기존 유지]  Fisher-Yates 셔플 (통계적 균등성 보장)
 // [기존 유지]  body.userStatus 폴백 완전 제거 — JWT 검증 실패 시 401 반환
 // [기존 유지]  exam_date int4(YYYYMMDD) 연도 필터 정수 범위 처리
+// [FIX-2025-1] premium 열람 범위 수정
+//              변경 전: explanation IS NOT NULL 조건만 적용 (is_premium 무관)
+//              변경 후: is_premium = true AND explanation IS NOT NULL
+//              → premium 유저는 유료 문제(is_premium=TRUE) 중 해설이 있는 문제만 열람
+// [FIX-2025-2] free 유저 해설 차단
+//              변경 전: explanation 컬럼이 있으면 무조건 노출
+//              변경 후: free 유저에게는 해설 블록 자체를 반환하지 않음
+//              → 클라이언트(common.js) checkAnswer에서 추가 처리
 // ─────────────────────────────────────────────────────────────────
 
 import { createClient } from '@supabase/supabase-js';
@@ -115,9 +123,15 @@ export default async function handler(req, res) {
 
     // ── 2. 권한별 접근 제한 ──────────────────────────────────
     if (userStatus === 'free') {
+      // free: is_premium=FALSE 문제만
       query = query.eq('is_premium', false);
     } else if (userStatus === 'premium') {
-      query = query.not('explanation', 'is', null)
+      // [FIX-2025-1] premium: is_premium=TRUE이면서 해설이 있는 문제만
+      // "자료 외 정보" 포함 문제는 서버에서 걸러내지 않고 클라이언트에서
+      // "해설에 문제가 있어 수정 중입니다." 문구로 대체 표시합니다.
+      query = query
+        .eq('is_premium', true)
+        .not('explanation', 'is', null);
     }
     // admin: 제한 없음
 
