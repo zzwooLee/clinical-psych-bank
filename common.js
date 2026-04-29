@@ -586,7 +586,7 @@ window.checkAnswer = function (selected) {
                       <div style="background:#f8f9fa; padding:12px; border-radius:8px; margin-bottom:15px;">정답은 <strong>${safeCorrect}번</strong> 입니다.</div>`;
     }
 
-    if (q.explanation) {
+    if (q.explanation && currentUser.status !== 'free') {
         const isBroken = q.explanation.includes('자료 외 정보');
         const safeExp  = isBroken
             ? '해설에 문제가 있어 수정 중입니다.'
