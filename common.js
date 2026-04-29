@@ -587,7 +587,10 @@ window.checkAnswer = function (selected) {
     }
 
     if (q.explanation) {
-        const safeExp = escapeHtml(q.explanation).replace(/\n/g, '<br>');
+        const isBroken = q.explanation.includes('자료 외 정보');
+        const safeExp  = isBroken
+            ? '해설에 문제가 있어 수정 중입니다.'
+            : escapeHtml(q.explanation).replace(/\n/g, '<br>');
         resultHTML += `
             <div style="text-align:left; background:#f0f4ff; border-left:4px solid #364d79; padding:15px; border-radius:8px; margin-top:15px;">
                 <strong>💡 해설:</strong><br>${safeExp}
