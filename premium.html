@@ -74,9 +74,6 @@
 
         /* ── 자동 로그아웃 모달 ── */
         #auto-logout-modal .modal-content h3 { color: #e53e3e; }
-
-        /* ── [NEW] 연도 로딩 인디케이터 ── */
-        #sel-year:disabled { color: #a0aec0; }
     </style>
 </head>
 <body class="premium-body">
@@ -108,6 +105,11 @@
         <!-- 필터 바 -->
         <div class="filter-bar">
             <div class="filter-group">
+                <!--
+                    [FIX-#1, #3] onchange="updateSubjects()" 유지.
+                    updateSubjects() 내부에서 initYears(grade)를 함께 호출하도록
+                    수정했으므로 급수 변경 시 연도 목록도 자동으로 갱신됩니다.
+                -->
                 <select id="sel-grade" onchange="updateSubjects()">
                     <option value="">급수 전체</option>
                     <option value="1">1급</option>
@@ -233,20 +235,19 @@
         };
 
         // ─────────────────────────────────────────────────────────────────
-        // updateSubjects
-        // 급수(grade) 변경 시:
-        //   1) 과목 목록 갱신
-        //   2) initYears(grade) 호출 → 연도 목록 갱신
-        //
-        // [NEW] premium 유저: 급수 선택 시에만 연도 API 호출
-        //       급수 미선택("전체") 시 연도 목록 초기화
-        //       free / admin 유저: 기존과 동일하게 급수와 무관하게 전체 연도 표시
+        // [FIX-#1, #3] updateSubjects
+        // 변경 전: 과목(sel-category)만 갱신하고 initYears()를 호출하지 않음
+        //          → 급수 변경 시 연도 목록이 이전 상태로 고정되는 버그
+        // 변경 후: 과목 갱신 후 initYears(grade)를 호출하여 연도도 함께 갱신
+        //          grade를 인자로 전달하므로 years.js가 올바른 급수 기준으로
+        //          연도 목록을 반환합니다.
         // ─────────────────────────────────────────────────────────────────
         function updateSubjects() {
             const grade          = document.getElementById('sel-grade').value;
             const categorySelect = document.getElementById('sel-category');
             if (!categorySelect) return;
 
+            // 과목 목록 갱신
             categorySelect.innerHTML = '<option value="">과목 전체</option>';
             if (grade && subjectData[grade]) {
                 subjectData[grade].forEach(sub => {
@@ -256,51 +257,33 @@
                 });
             }
 
-            // [NEW] 급수 변경 시 연도 목록 갱신
-            // · premium 유저: grade를 넘겨 서버에서 explanation 완전성 필터 적용
-            // · free / admin 유저: grade 파라미터를 무시하므로 동일하게 전달해도 무방
+            // [FIX-#3] 급수 변경 시 연도 목록도 함께 갱신
             initYears(grade);
         }
 
         // ─────────────────────────────────────────────────────────────────
-        // initYears(grade)
-        // [NEW] grade 파라미터 추가
+        // [FIX-#1] initYears — grade 파라미터 추가
+        // 변경 전: grade 없이 빈 body {}를 전송
+        //          → years.js가 premium 유저에게 grade 없음을 감지하고
+        //            빈 배열을 즉시 반환하여 연도 목록이 항상 비어있던 버그
+        // 변경 후: grade를 body에 포함하여 전송
+        //          · grade 선택 시 → 해당 급수의 연도 목록 반환
+        //          · grade 미선택('') 시 → free/admin은 전체 연도 반환,
+        //            premium은 빈 배열 반환 (years.js 설계 유지)
         //
-        // · premium 유저 + grade 미선택: 연도 목록을 초기화하고 API 미호출
-        //   → unique_years_premium 뷰가 explanation 완전성 조건을 포함하므로
-        //     급수 없이 전체 연도를 표시하면 의미 없는 연도가 섞일 수 있음
-        // · premium 유저 + grade 선택: grade를 body에 포함하여 API 호출
-        //   → 서버에서 해당 급수의 explanation 완전성 조건을 충족하는 연도만 반환
-        // · free / admin 유저: grade 파라미터 전달하지만 서버에서 무시
-        //   → 기존과 동일하게 전체 연도 목록 반환
+        // DOMContentLoaded에서 호출 시에는 grade=''로 호출합니다.
+        // premium 유저는 급수를 먼저 선택해야 연도가 채워지는 UX가 됩니다.
+        // (years.js의 premium + grade 없음 → 빈 배열 정책과 일치)
         // ─────────────────────────────────────────────────────────────────
         async function initYears(grade = '') {
             const yearSelect = document.getElementById('sel-year');
             if (!yearSelect) return;
 
-            // [NEW] 현재 로그인 유저 등급 확인
-            const user = JSON.parse(sessionStorage.getItem('quiz_user') || '{}');
-            const isPremium = user.status === 'premium';
-
-            // [NEW] premium 유저가 급수를 선택하지 않은 경우
-            // 연도 목록을 초기화하고 API를 호출하지 않습니다.
-            if (isPremium && !grade) {
-                yearSelect.innerHTML = '<option value="">급수를 먼저 선택하세요</option>';
-                yearSelect.disabled  = false;
-                return;
-            }
-
-            // 로딩 상태 표시
-            yearSelect.innerHTML = '<option value="">로딩 중...</option>';
-            yearSelect.disabled  = true;
-
             try {
                 const response = await fetch('/api/years', {
                     method : 'POST',
                     headers: authHeaders(),
-                    // [NEW] grade를 body에 포함하여 전달
-                    // · premium 유저: 서버에서 grade로 필터링 후 explanation 완전성 검사
-                    // · free / admin 유저: 서버에서 grade 무시
+                    // [FIX-#1] grade를 body에 포함하여 전송
                     body   : JSON.stringify({ grade })
                 });
 
@@ -320,12 +303,7 @@
                     opt.value = year; opt.text = year + '년';
                     yearSelect.add(opt);
                 });
-            } catch (e) {
-                console.error('연도 로드 실패:', e);
-                yearSelect.innerHTML = '<option value="">연도 전체</option>';
-            } finally {
-                yearSelect.disabled = false;
-            }
+            } catch (e) { console.error('연도 로드 실패:', e); }
         }
 
         /* ── 초기화 ── */
@@ -348,9 +326,18 @@
                 }
             }
 
-            // [NEW] updateSubjects()를 호출하면 내부에서 initYears('')도 함께 호출됩니다.
-            // · premium 유저: 급수 미선택 상태이므로 연도 목록을 "급수를 먼저 선택하세요"로 초기화
-            // · free / admin 유저: grade='' 로 initYears 호출 → 전체 연도 목록 로드
+            // common.js가 동기 로드되므로 authHeaders는 이미 정의되어 있습니다.
+            //
+            // [FIX-#1, #3] 초기화 순서 변경:
+            // 변경 전: initYears() → updateSubjects() 순으로 별도 호출
+            //          initYears()가 grade='' 없이 호출되어 premium 유저의
+            //          연도 목록이 항상 비어있던 버그 발생
+            // 변경 후: updateSubjects()만 호출
+            //          updateSubjects() 내부에서 initYears(grade)를 호출하므로
+            //          초기 grade=''(급수 전체) 기준으로 연도 목록이 함께 초기화됩니다.
+            //          premium 유저는 grade 미선택 시 연도 목록이 빈 상태로 시작하며,
+            //          급수를 선택하면 updateSubjects() → initYears(grade) 순으로
+            //          자동 갱신됩니다.
             updateSubjects();
         });
 
