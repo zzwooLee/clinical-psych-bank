@@ -9,11 +9,8 @@
 // [FIX-High-1]    questions.js / years.js와 동일하게 premium 만료 처리를
 //                  fire-and-forget → await + 실패 로그로 교체
 // [FIX-High-2]    기존 FIX 사항 유지
-//                  · insertError 조건 논리 오류 수정 (code !== '23505')
-//                  · set-new-password service_role 키 의존성 주석 유지
-//                  · profileError 발생 시 기본값(free) 처리 유지
-//                  · 미인증 이메일 체크 위치 최적화 유지
-//                  · PGRST116 명시적 처리 유지
+// [FIX-High-3]    Cache-Control: no-store 헤더 추가
+//                  로그아웃 후 브라우저/CDN 캐시에서 인증 응답이 재사용되는 것을 방지
 // ─────────────────────────────────────────────────────────────────
 
 import { createClient } from '@supabase/supabase-js';
@@ -34,6 +31,10 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ message: 'Method Not Allowed' });
   }
+
+  // [FIX-High-3] 캐시 방지 헤더 — 인증 응답은 절대 캐시되어서는 안 됩니다.
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
 
   const { action } = req.query;
 
@@ -82,7 +83,6 @@ export default async function handler(req, res) {
       if (status === 'premium' && userProfile?.expiry_date) {
         if (new Date(userProfile.expiry_date) < new Date()) {
           console.log('[auth.js] premium 만료 — free로 다운그레이드:', data.user.id);
-          // [FIX-High-1] fire-and-forget → await + 실패 로그
           const { error: downgradeErr } = await supabase
             .from('users')
             .update({ user_status: 'free' })
@@ -102,9 +102,6 @@ export default async function handler(req, res) {
 
       if (isNotFound) {
         console.log('[auth.js] users 행 자동 생성 시도 (첫 로그인):', data.user.id);
-        // [FIX-Critical-2] insert → upsert 교체
-        // signup(email_confirmed_at 존재 환경) 직후 로그인 시 insert 경쟁 조건 해소
-        // onConflict: 'id' + ignoreDuplicates: true → 중복 시 기존 행 유지
         const { error: upsertError } = await supabase.from('users').upsert([{
           id         : data.user.id,
           email      : data.user.email,
@@ -123,7 +120,6 @@ export default async function handler(req, res) {
         user: {
           id   : data.user.id,
           email: data.user.email,
-          // user_metadata.name을 name 필드로 명시적으로 전달
           name : userProfile?.name || data.user.user_metadata?.name || ''
         },
         status,
@@ -156,7 +152,6 @@ export default async function handler(req, res) {
       // 이메일 확인이 비활성화된 환경(Confirm email = OFF)에서는 즉시 users 행 생성
       if (data.user?.id && data.user?.email_confirmed_at) {
         console.log('[auth.js] 이메일 확인 비활성화 환경 — 가입 즉시 users 행 생성:', data.user.id);
-        // [FIX-Critical-2] upsert 적용 — login과 경쟁 시에도 안전
         const { error: upsertError } = await supabase
           .from('users')
           .upsert([{ id: data.user.id, email, name, user_status: 'free' }], {
@@ -182,11 +177,6 @@ export default async function handler(req, res) {
         return res.status(400).json({ message: '이메일을 입력해주세요.' });
       }
 
-      // [FIX-Critical-1] SITE_URL 미설정 시 경고 로그 추가
-      // Supabase 대시보드 → Authentication → URL Configuration → Redirect URLs 에
-      // 아래 URL을 반드시 등록해야 비밀번호 재설정 링크가 정상 동작합니다:
-      //   {SITE_URL}/index.html
-      // 예: https://your-domain.vercel.app/index.html
       if (!process.env.SITE_URL) {
         console.warn(
           '[auth.js] SITE_URL 환경변수가 설정되지 않았습니다. ' +
