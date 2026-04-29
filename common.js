@@ -160,8 +160,11 @@ window._quizStorageKey = QUIZ_STORAGE_KEY;
 // ─────────────────────────────────────────────
 let allQuestions = [];
 let currentIndex = 0;
-let currentUser = JSON.parse(sessionStorage.getItem('quiz_user')) || { email: '', status: 'free' };
-let currentTargetUserId = null;
+function safeParseUser() {
+    try { return JSON.parse(sessionStorage.getItem('quiz_user')); }
+    catch { sessionStorage.removeItem('quiz_user'); return null; }
+}
+let currentUser = safeParseUser() || { email: '', status: 'free' };let currentTargetUserId = null;
 
 // ─────────────────────────────────────────────────────────────────
 // XSS 방어 헬퍼
@@ -223,8 +226,12 @@ document.addEventListener('DOMContentLoaded', () => {
 function updateUserUI() {
     const savedUser = sessionStorage.getItem('quiz_user');
     if (savedUser) {
-        currentUser = JSON.parse(savedUser);
-        const nameEl   = document.getElementById('display-name');
+        try {
+            currentUser = JSON.parse(savedUser);
+        } catch {
+            sessionStorage.removeItem('quiz_user');
+            return;
+        }        const nameEl   = document.getElementById('display-name');
         const statusEl = document.getElementById('display-status');
         if (nameEl)   nameEl.innerText   = currentUser.name || currentUser.email;
         if (statusEl) statusEl.innerText = (currentUser.status || 'free').toUpperCase();
@@ -543,8 +550,11 @@ window.checkAnswer = function (selected) {
 
     btns.forEach(btn => (btn.style.pointerEvents = 'none'));
 
-    const safeCorrect = Number(correct);
-
+    if (![1, 2, 3, 4].includes(safeCorrect)) {
+        resultBox.innerHTML = '<div style="color:#e74c3c;">문제 데이터 오류입니다.</div>';
+        resultBox.style.display = 'block';
+        return;
+    }
     let resultHTML = '';
     if (selected == safeCorrect) {
         document.getElementById(`choice-${selected}`).style.borderColor     = '#2ecc71';
